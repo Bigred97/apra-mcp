@@ -47,7 +47,7 @@ Examples:
   records: [Observation],          # or grouped series if format="series"
   csv: str | null,
   source: "Australian Prudential Regulation Authority",
-  attribution: "Source: APRA. Licensed under Creative Commons Attribution 4.0 International (https://creativecommons.org/licenses/by/4.0/).",
+  attribution: "Source: APRA. Licensed under Creative Commons Attribution 3.0 Australia (https://creativecommons.org/licenses/by/3.0/au/).",
   retrieved_at: ISO datetime,
   apra_url: str,                   # canonical APRA landing page
   download_url: str,               # actual XLSX URL used (post-discovery)
@@ -96,4 +96,4 @@ apra.gov.au publishes XLSX at date-versioned paths. The discovery layer:
 
 ## Attribution
 
-Every response carries CC-BY 4.0 attribution per APRA's copyright terms.
+Every response carries CC-BY 3.0 AU attribution per APRA's licence.

@@ -122,10 +122,10 @@ async def test_live_response_carries_download_url():
 
 @pytest.mark.live
 @pytest.mark.asyncio
-async def test_live_response_attribution_is_ccby4():
+async def test_live_response_attribution_is_ccby3au():
     r = await server.latest("ADI_KEY_STATS", filters={"institution": "cba"})
-    assert "Creative Commons Attribution 4.0 International" in r.attribution
-    assert "creativecommons.org/licenses/by/4.0" in r.attribution
+    assert "Creative Commons Attribution 3.0 Australia" in r.attribution
+    assert "creativecommons.org/licenses/by/3.0/au" in r.attribution
 
 
 @pytest.mark.live

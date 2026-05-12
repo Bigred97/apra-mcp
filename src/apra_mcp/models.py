@@ -4,8 +4,8 @@ Mirrors the response shape used by abs-mcp / rba-mcp / ato-mcp so a downstream
 agent that calls multiple Australian government MCPs gets a uniform envelope.
 
 APRA-specific differences:
-- attribution names APRA and the CC-BY 4.0 International licence (NOT 3.0 AU
-  like the data.gov.au mirrored datasets — APRA's own publications are 4.0 Intl).
+- attribution names APRA and CC-BY 3.0 AU per APRA's licence (same as the
+  data.gov.au mirrored datasets used by ato-mcp).
 - DataResponse.source defaults to "Australian Prudential Regulation Authority"
 - DataResponse.apra_url points back at the APRA landing page
 - DataResponse.download_url surfaces the actual XLSX URL used (so callers can
@@ -26,8 +26,8 @@ from pydantic import BaseModel, Field
 
 _APRA_ATTRIBUTION = (
     "Source: Australian Prudential Regulation Authority. "
-    "Licensed under Creative Commons Attribution 4.0 International "
-    "(https://creativecommons.org/licenses/by/4.0/)."
+    "Licensed under Creative Commons Attribution 3.0 Australia "
+    "(https://creativecommons.org/licenses/by/3.0/au/)."
 )
 
 

@@ -567,7 +567,7 @@ async def get_data(
     Returns:
         DataResponse with records (or csv), unit, period bounds, row_count,
         source URL, the actual download_url used, optional framework info
-        (insurance only), and CC-BY 4.0 attribution.
+        (insurance only), and CC-BY 3.0 AU attribution.
     """
     return await _get_data_impl(
         dataset_id, filters, measures, start_period, end_period, format

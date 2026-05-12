@@ -100,7 +100,7 @@ Every response on an insurance dataset includes a `framework` block surfacing th
 
 ## Attribution
 
-Data sourced from the Australian Prudential Regulation Authority. Licensed under [Creative Commons Attribution 4.0 International (CC BY 4.0)](https://creativecommons.org/licenses/by/4.0/). apra-mcp is MIT-licensed; APRA's data carries the upstream CC-BY 4.0 license, echoed in every response's `attribution` field.
+Data sourced from the Australian Prudential Regulation Authority. Licensed under [Creative Commons Attribution 3.0 Australia (CC BY 3.0 AU)](https://creativecommons.org/licenses/by/3.0/au/). apra-mcp is MIT-licensed; APRA's data carries the upstream CC-BY 3.0 AU licence, echoed in every response's `attribution` field.
 
 ---
 

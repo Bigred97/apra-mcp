@@ -23,7 +23,7 @@ def test_adi_key_stats_response_shape(adi_key_stats_xlsx):
     )
     assert resp.dataset_id == "ADI_KEY_STATS"
     assert resp.source == "Australian Prudential Regulation Authority"
-    assert "Attribution 4.0" in resp.attribution
+    assert "Attribution 3.0 Australia" in resp.attribution
     assert resp.row_count > 0
     # Every record carries CBA institution + Major banks sector
     for r in resp.records:
@@ -167,7 +167,7 @@ def test_period_swap_handled_in_caller():
 
 
 def test_attribution_string_correct_for_apra():
-    """APRA attribution must reference CC-BY 4.0, not 3.0 AU."""
+    """APRA attribution references CC-BY 3.0 Australia per APRA's licence."""
     cd = curated.get("ADI_KEY_STATS")
     import pandas as pd
     df = pd.DataFrame()
@@ -178,9 +178,9 @@ def test_attribution_string_correct_for_apra():
         dataset_id="X", dataset_name="X",
         retrieved_at=datetime.now(timezone.utc), apra_url="https://www.apra.gov.au/x",
     )
-    assert "Creative Commons Attribution 4.0 International" in resp.attribution
-    assert "creativecommons.org/licenses/by/4.0" in resp.attribution
-    assert "3.0" not in resp.attribution
+    assert "Creative Commons Attribution 3.0 Australia" in resp.attribution
+    assert "creativecommons.org/licenses/by/3.0/au" in resp.attribution
+    assert "4.0" not in resp.attribution
 
 
 def test_response_carries_framework_for_insurance(life_insurance_xlsx):

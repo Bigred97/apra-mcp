@@ -82,7 +82,7 @@ async def test_top_n_preserves_envelope():
     """top_n should keep dataset_id, name, attribution, framework etc."""
     r = await server.top_n("ADI_KEY_STATS", "cet1_ratio", n=3)
     assert r.dataset_id == "ADI_KEY_STATS"
-    assert "Creative Commons Attribution 4.0" in r.attribution
+    assert "Creative Commons Attribution 3.0 Australia" in r.attribution
     assert r.row_count == 3
 
 
