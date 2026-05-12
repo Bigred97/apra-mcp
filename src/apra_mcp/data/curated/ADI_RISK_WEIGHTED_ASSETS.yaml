@@ -1,15 +1,18 @@
 id: ADI_RISK_WEIGHTED_ASSETS
 name: ADI Risk-Weighted Assets — breakdown by risk type (quarterly)
 description: |
-  Per-entity risk-weighted assets (RWA) breakdown for every Australian ADI,
-  every quarter since March 2013. Shows how each bank's total RWA splits across
-  credit risk, operational risk, market risk (and its sub-components: IRRBB
-  and traded market risk under standard vs internal model approaches). Complements
-  ADI_KEY_STATS — the same entity universe and same period, but a different
-  cut of the regulatory capital picture.
+  Per-entity risk-weighted assets (RWA) breakdown for every Australian ADI.
+  Shows how each bank's total RWA splits across credit risk, operational risk,
+  market risk (and its sub-components: IRRBB and traded market risk under
+  standard vs internal model approaches). Complements ADI_KEY_STATS — the
+  same entity universe, same snapshot, but a different cut of the regulatory
+  capital picture.
+
+  This file is a SNAPSHOT — it ships the most recent reporting quarter. For
+  long historical series, accumulate snapshots over time.
   Source: APRA Quarterly Authorised Deposit-taking Institution Statistics,
   "Authorised deposit-taking institution centralised publication" XLSX (Table 2).
-period_coverage: March 2013 → latest quarter
+period_coverage: latest quarter snapshot
 update_frequency: quarterly
 source_url: https://www.apra.gov.au/quarterly-authorised-deposit-taking-institution-statistics
 download_url: https://www.apra.gov.au/sites/default/files/2026-03/Authorised%20deposit-taking%20institution%20centralised%20publication%20-%20March%202013%20to%20December%202025.xlsx

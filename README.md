@@ -65,13 +65,20 @@ Every response is the same shape — `dataset_id`, `dataset_name`, `query`, `per
 
 | ID                              | What it is                                                                  | Period             |
 |---------------------------------|-----------------------------------------------------------------------------|--------------------|
-| `ADI_KEY_STATS`                 | Per-bank CET1 / Tier 1 / Total capital + RWA, every quarter                 | Mar 2013 → latest  |
-| `ADI_RISK_WEIGHTED_ASSETS`      | Per-bank RWA by risk type (credit / operational / market / IRRBB)            | Mar 2013 → latest  |
-| `SUPER_FUND_LEVEL`              | Fund-by-fund members, benefits, demographics                                | Jun 2024 → latest  |
-| `INSURANCE_GENERAL`             | Long-format general insurance (post-AASB17)                                  | Sep 2023 → latest  |
+| `ADI_KEY_STATS`                 | Per-bank CET1 / Tier 1 / Total capital + RWA                                | latest quarter snapshot |
+| `ADI_RISK_WEIGHTED_ASSETS`      | Per-bank RWA by risk type (credit / operational / market / IRRBB)            | latest quarter snapshot |
+| `SUPER_FUND_LEVEL`              | Fund-by-fund members, benefits, demographics                                | latest quarter snapshot |
+| `INSURANCE_GENERAL`             | Long-format general insurance (post-AASB17, ~24k rows × 10 quarters)         | Sep 2023 → latest  |
 | `INSURANCE_GENERAL_HISTORICAL`  | General insurance archive (pre-AASB17)                                       | Dec 2002 → Jun 2023|
-| `LIFE_INSURANCE`                | Long-format life insurance (post-AASB17)                                     | Sep 2023 → latest  |
+| `LIFE_INSURANCE`                | Long-format life insurance (post-AASB17, ~10k rows × 10 quarters)            | Sep 2023 → latest  |
 | `LIFE_INSURANCE_HISTORICAL`     | Life insurance archive (pre-AASB17)                                          | Jun 2008 → Jun 2023|
+
+> **Snapshot vs time-series.** ADI and Super datasets ship the most recent
+> reporting quarter only (APRA refreshes the file each quarter). The four
+> insurance datasets are long time series in a single file. Pass
+> `start_period` / `end_period` as ISO dates (`2025-12-31`), bare years
+> (`2024`), year-months (`2025-06`), or quarter shorthand (`2025-Q4`) — all
+> normalised internally.
 
 ---
 

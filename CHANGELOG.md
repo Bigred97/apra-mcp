@@ -5,6 +5,53 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.2] — 2026-05-13
+
+### Bug fixes (real customer impact)
+
+- **`latest()` was returning a single record for long-format datasets**
+  (`INSURANCE_GENERAL`, `INSURANCE_GENERAL_HISTORICAL`, `LIFE_INSURANCE`,
+  `LIFE_INSURANCE_HISTORICAL`). Root cause: `last_n=1` was implemented as
+  "keep 1 per measure", but long-format datasets carry a single `value`
+  measure with the semantic metric in the `data_item` dimension —
+  collapsing to 1 record per measure threw away the whole table. Fix:
+  detect long-format mode (one measure + period_column declared) and
+  switch to "keep all records at the most recent period(s)". `latest()`
+  on insurance datasets now returns hundreds of records (the latest
+  quarter's worth) instead of one.
+- **Period filters with quarter shorthand (`2025-Q4`) and bare years
+  (`2024`) silently returned zero rows.** The source `period_column`
+  stores ISO dates (`2025-12-31`) and string-comparing them against
+  `"2025-Q4"` excluded everything (`Q` > `1` in ASCII). Fix: a new
+  `_expand_period_input` normaliser converts user-supplied periods to
+  ISO `YYYY-MM-DD` bounds before comparison. Supports `YYYY`, `YYYY-MM`,
+  `YYYY-Qx` (and lowercase `q`), and ISO dates.
+
+### UX
+
+- **"Did you mean?" suggestions on unknown filter values.** Closest
+  RapidFuzz match (WRatio ≥ 70) is offered in the error message:
+  `Unknown value 'major' for filter 'sector'. Did you mean 'major_banks'?`
+  Permissive dimensions (fund_name, data_item) still pass unknowns
+  through unchanged.
+
+### Documentation honesty fix
+
+- Corrected `period_coverage` metadata on three snapshot datasets
+  (`ADI_KEY_STATS`, `ADI_RISK_WEIGHTED_ASSETS`, `SUPER_FUND_LEVEL`).
+  The APRA "centralised publication" XLSX is a SNAPSHOT of the latest
+  reporting quarter, not the multi-year history the filename suggests.
+  The YAML descriptions and `period_coverage` strings now say so
+  explicitly. The insurance long-format datasets remain true time
+  series (Sep 2023 → Dec 2025 for current; back to 2002/2008 for
+  historical).
+
+### Tests
+
+- 263 unit tests (up from 229 — 34 new covering the fixes)
+- 16 live integration tests
+- Zero-flake across 10 sequential runs
+
 ## [0.1.1] — 2026-05-12
 
 ### Attribution correction

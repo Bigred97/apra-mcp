@@ -287,6 +287,8 @@ def translate_filter_value(
     If the dim has an enumerated `dimension_values` map, the user can pass
     either an alias ('cba') or the canonical value ('Commonwealth Bank...').
     Free-form (no enum) and permissive dims pass values through unchanged.
+    Unknown values raise ValueError with a "Did you mean?" suggestion when
+    a near-match exists (RapidFuzz WRatio ≥ 70).
     """
     dv = cd.dimension_values.get(dim_key)
     if dv is None or dv.values is None:
@@ -298,11 +300,25 @@ def translate_filter_value(
     if dv.permissive:
         return user_value
     valid = sorted(dv.values.keys())
+    hint = _did_you_mean(user_value, valid)
+    suggestion = f" Did you mean {hint!r}?" if hint else ""
     raise ValueError(
-        f"Unknown value {user_value!r} for filter {dim_key!r} on dataset {cd.id!r}. "
-        f"Try one of: {', '.join(valid[:15])}"
+        f"Unknown value {user_value!r} for filter {dim_key!r} on dataset {cd.id!r}."
+        f"{suggestion} Try one of: {', '.join(valid[:15])}"
         + ("..." if len(valid) > 15 else "")
     )
+
+
+def _did_you_mean(user_value: str, candidates: list[str]) -> str | None:
+    """Return the closest candidate string if it scores ≥ 70 on RapidFuzz WRatio."""
+    if not candidates:
+        return None
+    try:
+        from rapidfuzz import fuzz, process
+    except ImportError:
+        return None
+    match = process.extractOne(user_value, candidates, scorer=fuzz.WRatio, score_cutoff=70)
+    return match[0] if match else None
 
 
 def resolve_measure_keys(

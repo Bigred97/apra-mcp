@@ -2,13 +2,19 @@ id: ADI_KEY_STATS
 name: ADI Key Statistics — entity-level capital and key ratios (quarterly)
 description: |
   Per-entity capital data for every Authorised Deposit-taking Institution (ADI)
-  in Australia, every quarter since March 2013. Each row is one (bank, quarter)
-  pair with Tier 1 / Total capital, risk-weighted assets, and the corresponding
-  capital ratios. The fastest answer to "what's CBA's CET1 ratio?", "how big are
-  the major banks?", or "which foreign bank has the highest capital base?".
+  in Australia. Each row is one (bank, quarter) pair with Tier 1 / Total capital,
+  risk-weighted assets, and the corresponding capital ratios. The fastest answer
+  to "what's CBA's CET1 ratio?", "how big are the major banks?", or "which
+  foreign bank has the highest capital base?".
+
+  This file is a SNAPSHOT — it ships the most recent reporting quarter (and
+  sometimes the previous one for cross-quarter movement). For long historical
+  series, accumulate snapshots over time. The published filename references the
+  full coverage period (March 2013 onward) but only the latest quarter is in
+  the file.
   Source: APRA Quarterly Authorised Deposit-taking Institution Statistics,
   "Authorised deposit-taking institution centralised publication" XLSX.
-period_coverage: March 2013 → latest quarter
+period_coverage: latest quarter snapshot
 update_frequency: quarterly
 source_url: https://www.apra.gov.au/quarterly-authorised-deposit-taking-institution-statistics
 download_url: https://www.apra.gov.au/sites/default/files/2026-03/Authorised%20deposit-taking%20institution%20centralised%20publication%20-%20March%202013%20to%20December%202025.xlsx

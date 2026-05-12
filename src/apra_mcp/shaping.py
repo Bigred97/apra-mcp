@@ -186,10 +186,15 @@ def _apply_period_range(
     df: pd.DataFrame, cd: CuratedDataset,
     start_period: str | None, end_period: str | None,
 ) -> pd.DataFrame:
-    """Filter rows by start_period / end_period against cd.period_column."""
+    """Filter rows by start_period / end_period against cd.period_column.
+
+    User-supplied periods may be ISO dates ("2025-12-31"), bare years
+    ("2025"), year-month strings ("2025-12"), or quarter shorthand
+    ("2025-Q4"). All of these get normalised to ISO YYYY-MM-DD bounds
+    before comparison against the source's quarter-end date strings.
+    """
     if not cd.period_column or not (start_period or end_period):
         return df
-    # The period column alias is whichever curated column has this source_column.
     period_alias: str | None = None
     for c in cd.columns.values():
         if c.source_column == cd.period_column:
@@ -199,11 +204,66 @@ def _apply_period_range(
         return df
     series = df[period_alias].astype("string")
     if start_period:
-        df = df.loc[series >= str(start_period)]
+        norm = _expand_period_input(start_period, bound="start")
+        df = df.loc[series >= norm]
         series = df[period_alias].astype("string")
     if end_period:
-        df = df.loc[series <= str(end_period)]
+        norm = _expand_period_input(end_period, bound="end")
+        df = df.loc[series <= norm]
     return df.reset_index(drop=True)
+
+
+def _expand_period_input(value: str, *, bound: str) -> str:
+    """Expand a user-supplied period string to an ISO YYYY-MM-DD bound.
+
+    Accepted forms:
+      - "YYYY-MM-DD" → passthrough
+      - "YYYY"       → start=YYYY-01-01, end=YYYY-12-31
+      - "YYYY-MM"    → start=YYYY-MM-01, end=last-day-of-month
+      - "YYYY-Qx"    → start=quarter-start, end=quarter-end
+      - anything else → passthrough (best-effort lexical compare)
+    """
+    if not value:
+        return value
+    s = value.strip()
+    # Already an ISO date
+    if len(s) == 10 and s[4] == "-" and s[7] == "-":
+        return s
+    # Bare year
+    if len(s) == 4 and s.isdigit():
+        return f"{s}-01-01" if bound == "start" else f"{s}-12-31"
+    # Quarter shorthand: YYYY-Qx (case-insensitive)
+    if len(s) == 7 and s[4] == "-" and s[5] in ("Q", "q"):
+        year = s[:4]
+        try:
+            q = int(s[6])
+        except ValueError:
+            return s
+        if 1 <= q <= 4:
+            if bound == "start":
+                month = {1: "01", 2: "04", 3: "07", 4: "10"}[q]
+                return f"{year}-{month}-01"
+            else:
+                # Quarter-end dates align with APRA's quarter-end reporting.
+                end_md = {1: "03-31", 2: "06-30", 3: "09-30", 4: "12-31"}[q]
+                return f"{year}-{end_md}"
+    # Year-month: YYYY-MM
+    if len(s) == 7 and s[4] == "-" and s[5:].isdigit():
+        try:
+            m = int(s[5:7])
+        except ValueError:
+            return s
+        if 1 <= m <= 12:
+            if bound == "start":
+                return f"{s}-01"
+            last_day = {1: 31, 2: 28, 3: 31, 4: 30, 5: 31, 6: 30,
+                        7: 31, 8: 31, 9: 30, 10: 31, 11: 30, 12: 31}[m]
+            # Don't bother with leap-year February — APRA period_columns always
+            # carry quarter-end dates (Mar/Jun/Sep/Dec), so this end-of-month
+            # bound is generous; a Feb 29 in source data still compares ≤ "Feb 28".
+            # If that ever becomes a real case, switch to calendar.monthrange.
+            return f"{s}-{last_day:02d}"
+    return s
 
 
 def shape_wide(
@@ -348,14 +408,28 @@ def build_response(
     records = shape_wide(period_filtered, cd, measure_keys)
 
     if last_n is not None and last_n > 0 and records:
-        # Group by measure and keep the tail-N per measure (sorted by period asc).
-        per_measure: dict[str, list[Observation]] = {}
-        for r in records:
-            per_measure.setdefault(r.measure or "", []).append(r)
-        records = []
-        for k, obs in per_measure.items():
-            obs.sort(key=lambda o: o.period or "")
-            records.extend(obs[-last_n:])
+        measure_keys = list({r.measure for r in records if r.measure})
+        long_format = (
+            len(measure_keys) == 1 and cd.period_column is not None
+        )
+        if long_format:
+            # Long-format (insurance) datasets carry a single "value" measure;
+            # the semantic metric lives in the data_item dimension. "Latest"
+            # therefore means "all records at the most recent period(s)",
+            # not "tail N per measure" (which would always return ≤1 record).
+            periods_sorted = sorted({r.period for r in records if r.period})
+            if periods_sorted:
+                target_periods = set(periods_sorted[-last_n:])
+                records = [r for r in records if r.period in target_periods]
+        else:
+            # Wide-format: tail-N per measure (sorted by period asc).
+            per_measure: dict[str, list[Observation]] = {}
+            for r in records:
+                per_measure.setdefault(r.measure or "", []).append(r)
+            records = []
+            for k, obs in per_measure.items():
+                obs.sort(key=lambda o: o.period or "")
+                records.extend(obs[-last_n:])
 
     response_unit: str | None = None
     if records:

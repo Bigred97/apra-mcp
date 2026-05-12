@@ -2,12 +2,14 @@ id: SUPER_FUND_LEVEL
 name: Superannuation Fund-Level Statistics (quarterly, fund by fund)
 description: |
   Per-fund member counts, benefits, and demographics for every APRA-regulated
-  superannuation fund with more than six members. Each row is one (fund, quarter)
-  pair. Includes member counts (active + inactive), benefits, median balance,
-  median member age, and licensee structure metadata.
-  Inaugural release was June 2024 — historical depth is ~7 quarters but growing.
+  superannuation fund with more than six members. Each row is one fund at the
+  latest reporting quarter — member counts (active + inactive), benefits,
+  median balance, median member age, and licensee structure metadata.
+
+  This file is a SNAPSHOT of the latest quarter only. Inaugural release was
+  June 2024; historical depth would need to be built by accumulating snapshots.
   Source: APRA Quarterly Superannuation Fund-Level Statistics.
-period_coverage: June 2024 → latest quarter
+period_coverage: latest quarter snapshot
 update_frequency: quarterly
 source_url: https://www.apra.gov.au/quarterly-fund-level-statistics
 download_url: https://www.apra.gov.au/sites/default/files/2026-03/Quarterly%20Superannuation%20Fund%20Statistics%20December%202025.xlsx
