@@ -1,0 +1,112 @@
+id: LIFE_INSURANCE
+name: Life Insurance Performance Statistics (quarterly, post-AASB17)
+description: |
+  Long-format quarterly life insurance performance database. ~10,600 rows from
+  September 2023 onward, every data item (premium, claims, capital adequacy
+  supplementary data), reporting structure (Entity total, Total statutory
+  funds, etc.), and product group (Group lump sum risk, Individual disability
+  income, Annuity, etc.). Reported on the post-AASB-17 / new capital framework
+  basis effective 1 July 2023; pre-2023 data is in LIFE_INSURANCE_HISTORICAL
+  and cannot be directly spliced.
+  Source: APRA Quarterly Life Insurance Performance Statistics.
+period_coverage: September 2023 → latest quarter
+update_frequency: quarterly
+source_url: https://www.apra.gov.au/quarterly-life-insurance-performance-statistics
+download_url: https://www.apra.gov.au/sites/default/files/2026-03/Quarterly%20life%20insurance%20performance%20statistics%20database%20September%202023%20to%20December%202025%20%282%29.xlsx
+format: xlsx
+sheet: Database
+header_row: 1
+layout: wide
+cache_kind: data
+period_column: Reporting Date
+framework:
+  current_basis: post-AASB17
+  break_date: "2023-09-30"
+  break_reason: AASB 17 Insurance Contracts implementation + capital framework revision (effective 1 July 2023). Pre-break data is on a different basis. Use LIFE_INSURANCE_HISTORICAL for pre-2023.
+  historical_dataset: LIFE_INSURANCE_HISTORICAL
+search_keywords:
+  - life insurance
+  - life insurance premium
+  - life
+  - premium
+  - claims
+  - statutory funds
+  - lump sum risk
+  - disability income
+  - annuity
+  - longevity
+  - investment linked
+  - capital adequacy
+  - aasb 17
+discovery:
+  landing_url: https://www.apra.gov.au/quarterly-life-insurance-performance-statistics
+  filename_pattern: '(?i)life\s+insurance.*database'
+  prefer_database: true
+  exclude_patterns:
+    - '(?i)historical'
+    - '(?i)specifications'
+columns:
+  period:
+    source_column: "Reporting Date"
+    description: Quarter end date.
+    role: dimension
+    dtype: date
+  data_item:
+    source_column: "Data item"
+    description: Specific metric (e.g. "Actual gross claims incurred", "Net premium income", "Total assets"). Use describe_dataset for common values.
+    role: dimension
+    dtype: string
+    permissive: true
+  subject:
+    source_column: "Subject"
+    description: Top-level subject area (e.g. "Capital adequacy", "Financial performance").
+    role: dimension
+    dtype: string
+    permissive: true
+  category:
+    source_column: "Category"
+    description: Category grouping (e.g. "Supplementary capital data - premiums and claims").
+    role: dimension
+    dtype: string
+    permissive: true
+  stock_or_flow:
+    source_column: "Stock or flow"
+    description: "'Stock' or 'Flow'."
+    role: dimension
+    dtype: string
+  reporting_structure:
+    source_column: "Reporting structure"
+    description: APRA reporting structure (e.g. "Entity total", "Total statutory funds", "Total ordinary funds").
+    role: dimension
+    dtype: string
+    permissive: true
+  product_group:
+    source_column: "Product group"
+    description: Product group (e.g. "Individual lump sum risk", "Group disability income", "Annuity with longevity risk").
+    role: dimension
+    dtype: string
+    permissive: true
+  product_group_type:
+    source_column: "Product group type"
+    description: Product-group sub-type.
+    role: dimension
+    dtype: string
+    permissive: true
+  super_or_ordinary:
+    source_column: "Superannuation or ordinary business"
+    description: Where applicable, 'Superannuation' or 'Ordinary'.
+    role: dimension
+    dtype: string
+  value:
+    source_column: "Value ($)"
+    description: Reported value in $ (Australian dollars).
+    unit: AUD
+    role: measure
+    dtype: float
+dimension_values:
+  stock_or_flow:
+    stock: Stock
+    flow: Flow
+  super_or_ordinary:
+    superannuation: Superannuation
+    ordinary: Ordinary

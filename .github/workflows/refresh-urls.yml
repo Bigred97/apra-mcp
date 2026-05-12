@@ -1,0 +1,56 @@
+name: refresh-seed-urls
+
+# Daily scrape of every APRA landing page in apra-mcp's curated set.
+# - When the scraped URLs differ from data/seed_urls.json, opens a PR.
+# - When any URL returns non-2xx, opens a GitHub issue.
+# Effect: even users on a months-old pip install stay current for weeks
+# because new wheels carry the refreshed seed.
+
+on:
+  schedule:
+    - cron: "30 13 * * *"   # 13:30 UTC daily (post-APRA-publication window)
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install 3.12
+
+      - name: Sync dependencies
+        run: uv sync --extra dev && uv pip install -e .
+
+      - name: Run scraper for every curated dataset
+        id: scrape
+        run: |
+          uv run python scripts/refresh_seed.py > seed_diff.txt 2>&1 || echo "scrape_failed=true" >> $GITHUB_OUTPUT
+          cat seed_diff.txt
+
+      - name: Open PR if URLs changed
+        if: steps.scrape.outputs.scrape_failed != 'true'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          commit-message: "chore(seed): refresh URLs from APRA landing pages"
+          title: "chore(seed): refresh URLs from APRA landing pages"
+          body: |
+            Automated PR from `.github/workflows/refresh-urls.yml`.
+
+            ```
+            ${{ steps.scrape.outputs.diff }}
+            ```
+          branch: refresh-seed-urls
+          delete-branch: true
+          add-paths: src/apra_mcp/data/seed_urls.json

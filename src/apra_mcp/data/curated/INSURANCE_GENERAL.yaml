@@ -1,0 +1,145 @@
+id: INSURANCE_GENERAL
+name: General Insurance Performance Statistics (quarterly, post-AASB17)
+description: |
+  Long-format quarterly general insurance performance database. ~24,000 rows
+  spanning every reporting period from September 2023 onward, every data item
+  (premium, claims, capital, financial result), and every industry segment
+  (Total direct insurers, Total industry, Personal lines insurers, Commercial
+  lines insurers, etc.). Reported on the post-AASB-17 / new capital framework
+  basis effective 1 July 2023; values are NOT directly comparable to data
+  reported on the prior basis — use INSURANCE_GENERAL_HISTORICAL for pre-2023.
+  Source: APRA Quarterly General Insurance Performance Statistics.
+period_coverage: September 2023 → latest quarter
+update_frequency: quarterly
+source_url: https://www.apra.gov.au/quarterly-general-insurance-performance-statistics
+download_url: https://www.apra.gov.au/sites/default/files/2026-02/Quarterly%20general%20insurance%20performance%20statistics%20database%20September%202023%20to%20December%202025.xlsx
+format: xlsx
+sheet: Database
+header_row: 1
+layout: wide
+cache_kind: data
+period_column: Reporting Period
+framework:
+  current_basis: post-AASB17
+  break_date: "2023-09-30"
+  break_reason: AASB 17 Insurance Contracts implementation + capital framework revision (effective 1 July 2023). Pre-break data is reported on a different basis and is NOT directly comparable. Use INSURANCE_GENERAL_HISTORICAL for the pre-2023 archive.
+  historical_dataset: INSURANCE_GENERAL_HISTORICAL
+search_keywords:
+  - general insurance
+  - gi
+  - insurance
+  - gwp
+  - gross written premium
+  - claims
+  - underwriting result
+  - aasb 17
+  - direct insurer
+  - reinsurer
+  - lmi
+  - lenders mortgage insurance
+  - houseowners
+  - motor vehicle insurance
+  - cyber insurance
+discovery:
+  landing_url: https://www.apra.gov.au/quarterly-general-insurance-performance-statistics
+  filename_pattern: '(?i)general\s+insurance.*database'
+  prefer_database: true
+  exclude_patterns:
+    - '(?i)historical'
+    - '(?i)specifications'
+columns:
+  period:
+    source_column: "Reporting Period"
+    description: Quarter end date.
+    role: dimension
+    dtype: date
+  data_item:
+    source_column: "Data item"
+    description: Specific metric being reported (e.g. "Gross written premium", "Net claims incurred", "Insurance finance expenses"). Use describe_dataset to see common values.
+    role: dimension
+    dtype: string
+    permissive: true
+  category:
+    source_column: "Category"
+    description: Broad category grouping (e.g. "Insurance financial result", "Capital adequacy").
+    role: dimension
+    dtype: string
+    permissive: true
+  subject:
+    source_column: "Subject"
+    description: Top-level subject area (e.g. "Financial performance", "Financial position").
+    role: dimension
+    dtype: string
+    permissive: true
+  stock_or_flow:
+    source_column: "Stock or flow"
+    description: "'Stock' (balance sheet) or 'Flow' (quarter income/expense)."
+    role: dimension
+    dtype: string
+  industry_segment:
+    source_column: "Industry segment"
+    description: APRA industry segment (Total direct insurers, Total industry, Personal lines insurers, Commercial lines insurers, Lenders mortgage insurers, etc.).
+    role: dimension
+    dtype: string
+    permissive: true
+  industry_segment_group:
+    source_column: "Industry segment group"
+    description: Higher-level segment grouping.
+    role: dimension
+    dtype: string
+    permissive: true
+  class_of_business:
+    source_column: "Class of business"
+    description: Specific class of insurance business (e.g. "Houseowners and householders", "Motor vehicle", "Fire and ISR").
+    role: dimension
+    dtype: string
+    permissive: true
+  class_of_business_category:
+    source_column: "Class of business category"
+    description: Class-of-business category grouping.
+    role: dimension
+    dtype: string
+    permissive: true
+  class_of_business_group:
+    source_column: "Class of business group"
+    description: Class-of-business higher-level group (Direct business / Inwards reinsurance).
+    role: dimension
+    dtype: string
+    permissive: true
+  counterparty_grade:
+    source_column: "Counterparty grade"
+    description: Counterparty credit grade (when applicable).
+    role: dimension
+    dtype: string
+    permissive: true
+  state_territory:
+    source_column: "State and territory"
+    description: State / territory (when geographically disaggregated).
+    role: dimension
+    dtype: string
+    permissive: true
+  stress_scenario:
+    source_column: "Stress scenario type"
+    description: Stress scenario type (when applicable).
+    role: dimension
+    dtype: string
+    permissive: true
+  value:
+    source_column: "Value"
+    description: Reported value in $ (Australian dollars).
+    unit: AUD
+    role: measure
+    dtype: float
+dimension_values:
+  stock_or_flow:
+    stock: Stock
+    flow: Flow
+  industry_segment:
+    permissive: true
+    values:
+      total_industry: Total industry
+      total_direct_insurers: Total direct insurers
+      personal_lines: Personal lines insurers
+      commercial_lines: Commercial lines insurers
+      lmi: Lenders mortgage insurers
+      reinsurer: Reinsurer

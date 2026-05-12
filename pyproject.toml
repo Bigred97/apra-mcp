@@ -1,0 +1,62 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "apra-mcp"
+version = "0.1.0"
+description = "MCP server for Australian Prudential Regulation Authority statistics. Plain-English access to bank capital ratios, superannuation fund-level data, and life + general insurance — every prudentially-regulated entity in Australia, every quarter, with auto-discovery and a CC-BY 4.0 attribution contract."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "Harry Vass" }]
+keywords = [
+    "mcp", "apra", "australia", "banking", "insurance", "superannuation",
+    "prudential", "regulation", "capital-ratios", "claude", "fastmcp",
+    "fintech", "regtech",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Financial and Insurance Industry",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering :: Information Analysis",
+    "Topic :: Office/Business :: Financial",
+]
+dependencies = [
+    "fastmcp>=2.0,<4",
+    "httpx>=0.27",
+    "pydantic>=2.7",
+    "rapidfuzz>=3.9",
+    "pandas>=2.2,<3",
+    "openpyxl>=3.1",
+    "aiosqlite>=0.20",
+    "PyYAML>=6.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8",
+    "pytest-asyncio>=0.23",
+    "respx>=0.21",
+]
+
+[project.scripts]
+apra-mcp = "apra_mcp.server:main"
+
+[project.urls]
+Homepage = "https://github.com/Bigred97/apra-mcp"
+Issues = "https://github.com/Bigred97/apra-mcp/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/apra_mcp"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+markers = ["live: hits real apra.gov.au (downloads APRA XLSX files)"]
+addopts = "-m 'not live'"
+testpaths = ["tests"]
+pythonpath = ["src"]

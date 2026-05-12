@@ -1,0 +1,134 @@
+id: ADI_RISK_WEIGHTED_ASSETS
+name: ADI Risk-Weighted Assets — breakdown by risk type (quarterly)
+description: |
+  Per-entity risk-weighted assets (RWA) breakdown for every Australian ADI,
+  every quarter since March 2013. Shows how each bank's total RWA splits across
+  credit risk, operational risk, market risk (and its sub-components: IRRBB
+  and traded market risk under standard vs internal model approaches). Complements
+  ADI_KEY_STATS — the same entity universe and same period, but a different
+  cut of the regulatory capital picture.
+  Source: APRA Quarterly Authorised Deposit-taking Institution Statistics,
+  "Authorised deposit-taking institution centralised publication" XLSX (Table 2).
+period_coverage: March 2013 → latest quarter
+update_frequency: quarterly
+source_url: https://www.apra.gov.au/quarterly-authorised-deposit-taking-institution-statistics
+download_url: https://www.apra.gov.au/sites/default/files/2026-03/Authorised%20deposit-taking%20institution%20centralised%20publication%20-%20March%202013%20to%20December%202025.xlsx
+format: xlsx
+sheet: Table 2
+header_row: 3
+layout: wide
+cache_kind: data
+period_column: Entity quarter end
+search_keywords:
+  - rwa
+  - risk weighted assets
+  - credit risk
+  - operational risk
+  - market risk
+  - irrbb
+  - banking book interest rate
+  - traded market risk
+  - basel
+  - capital adequacy
+  - bank
+  - adi
+discovery:
+  landing_url: https://www.apra.gov.au/quarterly-authorised-deposit-taking-institution-statistics
+  filename_pattern: '(?i)centralised\s+publication'
+  exclude_patterns:
+    - '(?i)historical'
+columns:
+  period:
+    source_column: "Entity quarter end"
+    description: Quarter end date.
+    role: dimension
+    dtype: date
+  institution:
+    source_column: "Entity"
+    description: Bank or ADI legal name. Common aliases (`cba`, `westpac`, `nab`, `anz`) supported.
+    role: dimension
+    dtype: string
+    permissive: true
+  mutual:
+    source_column: "Mutual bank (Y/N)"
+    description: "'Y' if mutual ADI."
+    role: dimension
+    dtype: string
+  sector:
+    source_column: "Sector"
+    description: APRA sector classification.
+    role: dimension
+    dtype: string
+  credit_risk:
+    source_column: "Credit risk"
+    description: Credit risk RWA in $ million.
+    unit: AUD millions
+    role: measure
+    dtype: float
+  operational_risk:
+    source_column: "Operational risk"
+    description: Operational risk RWA in $ million.
+    unit: AUD millions
+    role: measure
+    dtype: float
+  market_risk:
+    source_column: "Market risk"
+    description: Total market risk RWA in $ million.
+    unit: AUD millions
+    role: measure
+    dtype: float
+  irrbb_internal_model:
+    source_column: "Of which: IRRBB - Internal model approach"
+    description: Interest Rate Risk in the Banking Book (IRRBB), internal model approach. $ million.
+    unit: AUD millions
+    role: measure
+    dtype: float
+  traded_market_risk_standard:
+    source_column: "Of which: Traded market risk under standard method"
+    description: Traded market risk RWA under standardised method. $ million.
+    unit: AUD millions
+    role: measure
+    dtype: float
+  traded_market_risk_internal:
+    source_column: "Of which: Traded market risk under internal model approach"
+    description: Traded market risk RWA under internal model approach. $ million.
+    unit: AUD millions
+    role: measure
+    dtype: float
+  other_risk_charges:
+    source_column: "Other risk charges"
+    description: Other RWA components. $ million.
+    unit: AUD millions
+    role: measure
+    dtype: float
+  total_rwa:
+    source_column: "Total risk-weighted assets"
+    description: Sum of credit + operational + market + other risk RWA. $ million.
+    unit: AUD millions
+    role: measure
+    dtype: float
+dimension_values:
+  institution:
+    permissive: true
+    values:
+      cba: Commonwealth Bank of Australia
+      commbank: Commonwealth Bank of Australia
+      westpac: Westpac Banking Corporation
+      nab: National Australia Bank Limited
+      anz: Australia and New Zealand Banking Group Limited
+      macquarie: Macquarie Bank Limited
+  sector:
+    major_banks: Major banks
+    other_domestic: Other domestic banks
+    other_domestic_banks: Other domestic banks
+    foreign_subsidiary: Foreign subsidiary banks
+    foreign_subsidiary_banks: Foreign subsidiary banks
+    foreign_branch: Foreign branch banks
+    foreign_branch_banks: Foreign branch banks
+    mutual_adis: Mutual ADIs
+    other_adis: Other ADIs
+  mutual:
+    "y": "Y"
+    "yes": "Y"
+    "n": "N"
+    "no": "N"

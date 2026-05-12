@@ -1,0 +1,182 @@
+id: SUPER_FUND_LEVEL
+name: Superannuation Fund-Level Statistics (quarterly, fund by fund)
+description: |
+  Per-fund member counts, benefits, and demographics for every APRA-regulated
+  superannuation fund with more than six members. Each row is one (fund, quarter)
+  pair. Includes member counts (active + inactive), benefits, median balance,
+  median member age, and licensee structure metadata.
+  Inaugural release was June 2024 — historical depth is ~7 quarters but growing.
+  Source: APRA Quarterly Superannuation Fund-Level Statistics.
+period_coverage: June 2024 → latest quarter
+update_frequency: quarterly
+source_url: https://www.apra.gov.au/quarterly-fund-level-statistics
+download_url: https://www.apra.gov.au/sites/default/files/2026-03/Quarterly%20Superannuation%20Fund%20Statistics%20December%202025.xlsx
+format: xlsx
+sheet: Table 1
+header_row: 4
+data_start_row: 7
+layout: wide
+cache_kind: data
+period_column: Period
+search_keywords:
+  - super
+  - superannuation
+  - super fund
+  - retirement
+  - member accounts
+  - retail super
+  - industry super
+  - mysuper
+  - rse
+  - fund size
+  - members
+  - benefits
+discovery:
+  landing_url: https://www.apra.gov.au/quarterly-fund-level-statistics
+  filename_pattern: '(?i)fund\s+statistics'
+  exclude_patterns:
+    - '(?i)specifications'
+columns:
+  period:
+    source_column: "Period"
+    description: Quarter end date.
+    role: dimension
+    dtype: date
+  fund_name:
+    source_column: "Fund name"
+    description: Fund's registered name. Common aliases like `australian_super`, `aware`, `hostplus`, `unisuper` supported. Use `fund_name='*super*'` for substring search.
+    role: dimension
+    dtype: string
+    permissive: true
+  abn:
+    source_column: "ABN"
+    description: Fund Australian Business Number.
+    role: id
+    dtype: string
+    permissive: true
+  rse_classification:
+    source_column: "RSE Regulatory classification"
+    description: "Public-offer or non-public-offer classification."
+    role: dimension
+    dtype: string
+  fund_type:
+    source_column: "Fund type"
+    description: CORPORATE | INDUSTRY | PUBLIC SECTOR | RETAIL | SMALL FUND.
+    role: dimension
+    dtype: string
+  membership_base:
+    source_column: "RSE Membership base"
+    description: General base, employer-sponsored, etc.
+    role: dimension
+    dtype: string
+  rse_licensee:
+    source_column: "Fund's RSE licensee"
+    description: The RSE licensee responsible for the fund.
+    role: dimension
+    dtype: string
+    permissive: true
+  licensee_ownership:
+    source_column: "RSE licensee ownership type"
+    description: Financial services corporation, etc.
+    role: dimension
+    dtype: string
+  licensee_profit_status:
+    source_column: "RSE licensee profit status"
+    description: For profit / Not for profit.
+    role: dimension
+    dtype: string
+  licensee_board_structure:
+    source_column: "RSE licensee board structure"
+    description: Equal representation / Non equal representation.
+    role: dimension
+    dtype: string
+  total_member_accounts:
+    source_column: "Total number of member accounts at the end of period"
+    description: Total member accounts at end of quarter.
+    unit: accounts
+    role: measure
+    dtype: int
+  total_members_benefits:
+    source_column: "Total members' benefits at end of period"
+    description: Total members' benefits at end of quarter, in $ thousand.
+    unit: AUD thousands
+    role: measure
+    dtype: float
+  median_benefit_bracket:
+    source_column: "Median benefit bracket"
+    description: "Bracket containing the median member benefit (e.g. '$25,000 to $39,999')."
+    role: dimension
+    dtype: string
+  estimated_median_balance:
+    source_column: "Estimated median account balance"
+    description: Estimated median account balance in $.
+    unit: AUD
+    role: measure
+    dtype: float
+  median_member_age:
+    source_column: "Median member age"
+    description: Median member age in years.
+    unit: years
+    role: measure
+    dtype: float
+  active_accounts:
+    source_column: "Number of active member accounts"
+    description: Number of active member accounts.
+    unit: accounts
+    role: measure
+    dtype: int
+  inactive_accounts:
+    source_column: "Number of inactive member accounts"
+    description: Number of inactive member accounts.
+    unit: accounts
+    role: measure
+    dtype: int
+  active_member_benefits:
+    source_column: "Members' benefits of active member accounts"
+    description: Total benefits of active member accounts, $ thousand.
+    unit: AUD thousands
+    role: measure
+    dtype: float
+  inactive_member_benefits:
+    source_column: "Members' benefits of inactive member accounts"
+    description: Total benefits of inactive member accounts, $ thousand.
+    unit: AUD thousands
+    role: measure
+    dtype: float
+  active_avg_balance:
+    source_column: "Average member account balance of active member accounts"
+    description: Mean balance per active account, $ thousand.
+    unit: AUD thousands
+    role: measure
+    dtype: float
+  inactive_avg_balance:
+    source_column: "Average member account balance of inactive member accounts"
+    description: Mean balance per inactive account, $ thousand.
+    unit: AUD thousands
+    role: measure
+    dtype: float
+dimension_values:
+  fund_name:
+    permissive: true
+    values:
+      australian_super: AustralianSuper
+      aware: Aware Super
+      aware_super: Aware Super
+      hostplus: Hostplus Superannuation Fund
+      unisuper: UniSuper
+      rest: Retail Employees Superannuation Trust
+      hesta: HESTA
+      cbus: Construction and Building Unions Superannuation Fund
+      amp_super: AMP Super Fund
+  fund_type:
+    corporate: CORPORATE
+    industry: INDUSTRY
+    public_sector: PUBLIC SECTOR
+    retail: RETAIL
+    small: SMALL FUND
+  rse_classification:
+    public_offer: public offer
+    non_public_offer: non-public offer
+  licensee_profit_status:
+    for_profit: For profit status
+    not_for_profit: Not for profit status

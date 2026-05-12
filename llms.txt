@@ -1,0 +1,99 @@
+# apra-mcp
+
+MCP (Model Context Protocol) server for Australian Prudential Regulation Authority data. Plain-English access to per-bank capital ratios, fund-by-fund superannuation, and post-AASB17 life + general insurance. Sister to abs-mcp / rba-mcp / ato-mcp.
+
+## What's exposed
+
+Six tools:
+
+- search_datasets(query, limit=10) -> list[DatasetSummary]
+- describe_dataset(dataset_id) -> DatasetDetail
+- get_data(dataset_id, filters?, measures?, start_period?, end_period?, format?) -> DataResponse
+- latest(dataset_id, filters?, measures?) -> DataResponse
+- top_n(dataset_id, measure, n=10, filters?, direction="top"|"bottom") -> DataResponse
+- list_curated() -> list[str]
+
+## Curated datasets (v0.1)
+
+- ADI_KEY_STATS: per-bank CET1 / Tier 1 / total capital + RWA + ratios. Quarterly since Mar 2013. ~80 entities. Plain-English alias: institution=cba.
+- ADI_RISK_WEIGHTED_ASSETS: per-bank RWA breakdown by risk type (credit / operational / market / IRRBB / traded market). Same period + entity universe as ADI_KEY_STATS.
+- SUPER_FUND_LEVEL: fund-by-fund member counts, benefits, median balance, demographics. Inaugural release Jun 2024. ~140 APRA-regulated super funds.
+- INSURANCE_GENERAL: post-AASB17 general insurance (Sep 2023+). Long-format database — filter by data_item, industry_segment, class_of_business.
+- INSURANCE_GENERAL_HISTORICAL: pre-AASB17 GI archive (Dec 2002 → Jun 2023). NOT directly comparable to current data — framework break.
+- LIFE_INSURANCE: post-AASB17 life insurance (Sep 2023+).
+- LIFE_INSURANCE_HISTORICAL: pre-AASB17 LI archive (Jun 2008 → Jun 2023).
+
+## Filter shape
+
+Plain-English keys, alias-resolved values. Permissive dimensions support substring search with trailing-star wildcard.
+
+Examples:
+- {"institution": "cba"}
+- {"sector": "major_banks"}
+- {"institution": ["cba", "westpac", "nab", "anz"]}
+- {"institution": "macquarie*"}   # substring match
+- {"fund_name": "australian_super"}
+- {"data_item": "Additional Tier 1 capital", "industry_segment": "Total industry"}
+
+## Response shape
+
+{
+  dataset_id: str,
+  dataset_name: str,
+  query: dict,
+  period: {start, end},
+  unit: str | null,
+  row_count: int,
+  records: [Observation],          # or grouped series if format="series"
+  csv: str | null,
+  source: "Australian Prudential Regulation Authority",
+  attribution: "Source: APRA. Licensed under Creative Commons Attribution 4.0 International (https://creativecommons.org/licenses/by/4.0/).",
+  retrieved_at: ISO datetime,
+  apra_url: str,                   # canonical APRA landing page
+  download_url: str,               # actual XLSX URL used (post-discovery)
+  framework: { basis, break_date, break_reason, historical_dataset } | null,
+  stale: bool,
+  stale_reason: str | null,
+  server_version: str,
+}
+
+Observation:
+{ period, value, measure, dimensions: dict, unit }
+
+## Framework break (insurance only)
+
+APRA changed the insurance reporting framework on 1 July 2023 (AASB 17 + capital framework revision). Pre- and post-break data are NOT directly comparable. apra-mcp ships paired datasets — _HISTORICAL variants for pre-2023, current datasets for post-2023. Every insurance response's `framework` block surfaces the break and the cross-reference.
+
+## When to call which tool
+
+- Don't know the dataset ID? search_datasets("capital") or search_datasets("super") first.
+- Want filters/measures? describe_dataset(...).
+- Want a time series or filtered slice? get_data(...).
+- Want only the most recent row(s)? latest(...).
+- Want to rank? top_n("ADI_KEY_STATS", "total_capital", n=10).
+- Want to enumerate? list_curated().
+
+## Common errors
+
+- "Unknown filter 'X' for dataset Y" — call describe_dataset(Y) for valid keys.
+- "Unknown value 'X' for filter 'sector'" — error lists valid options.
+- "Unknown measure 'X'" — describe_dataset for the list.
+- "end_period before start_period" — swap them.
+
+## Caching
+
+Server caches under ~/.apra-mcp/cache.db. TTLs:
+- "data" (XLSX files): 7 days
+- "landing" (landing-page HTML): 6 hours, conditional-GET refreshable
+- "discovery" (resolved URLs): 6 hours
+
+## Discovery + reliability
+
+apra.gov.au publishes XLSX at date-versioned paths. The discovery layer:
+1. Scrapes the canonical landing page (conditional GET — cheap when unchanged).
+2. Falls back to a bundled, CI-refreshed seed manifest when scrape fails — response is flagged stale.
+3. Final fallback: the YAML-default URL.
+
+## Attribution
+
+Every response carries CC-BY 4.0 attribution per APRA's copyright terms.

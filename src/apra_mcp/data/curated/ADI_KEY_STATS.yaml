@@ -1,0 +1,143 @@
+id: ADI_KEY_STATS
+name: ADI Key Statistics — entity-level capital and key ratios (quarterly)
+description: |
+  Per-entity capital data for every Authorised Deposit-taking Institution (ADI)
+  in Australia, every quarter since March 2013. Each row is one (bank, quarter)
+  pair with Tier 1 / Total capital, risk-weighted assets, and the corresponding
+  capital ratios. The fastest answer to "what's CBA's CET1 ratio?", "how big are
+  the major banks?", or "which foreign bank has the highest capital base?".
+  Source: APRA Quarterly Authorised Deposit-taking Institution Statistics,
+  "Authorised deposit-taking institution centralised publication" XLSX.
+period_coverage: March 2013 → latest quarter
+update_frequency: quarterly
+source_url: https://www.apra.gov.au/quarterly-authorised-deposit-taking-institution-statistics
+download_url: https://www.apra.gov.au/sites/default/files/2026-03/Authorised%20deposit-taking%20institution%20centralised%20publication%20-%20March%202013%20to%20December%202025.xlsx
+format: xlsx
+sheet: Table 1
+header_row: 3
+layout: wide
+cache_kind: data
+period_column: Entity quarter end
+search_keywords:
+  - adi
+  - bank
+  - banks
+  - banking
+  - capital ratio
+  - cet1
+  - tier 1
+  - total capital
+  - risk weighted assets
+  - cba
+  - westpac
+  - nab
+  - anz
+  - major banks
+  - prudential
+  - solvency
+  - fintech
+  - regtech
+discovery:
+  landing_url: https://www.apra.gov.au/quarterly-authorised-deposit-taking-institution-statistics
+  filename_pattern: '(?i)centralised\s+publication'
+  exclude_patterns:
+    - '(?i)historical'
+columns:
+  period:
+    source_column: "Entity quarter end"
+    description: Quarter end date (ISO YYYY-MM-DD).
+    role: dimension
+    dtype: date
+  institution:
+    source_column: "Entity"
+    description: Bank or ADI legal name. Use the major-bank aliases (`cba`, `westpac`, `nab`, `anz`, `macquarie`) or pass the full legal name. Substring matching with `cba*` syntax also works.
+    role: dimension
+    dtype: string
+    permissive: true
+  mutual:
+    source_column: "Mutual bank (Y/N)"
+    description: "'Y' if the entity is registered as a mutual ADI."
+    role: dimension
+    dtype: string
+  sector:
+    source_column: "Sector"
+    description: APRA sector classification (Major banks, Other domestic banks, Foreign subsidiary banks, Foreign branch banks, Mutual ADIs, Other ADIs).
+    role: dimension
+    dtype: string
+  cet1_capital:
+    source_column: "Total Common Equity Tier 1 capital"
+    description: Total Common Equity Tier 1 (CET1) capital in $ million.
+    unit: AUD millions
+    role: measure
+    dtype: float
+  tier1_capital:
+    source_column: "Total Tier 1 capital"
+    description: Total Tier 1 capital in $ million.
+    unit: AUD millions
+    role: measure
+    dtype: float
+  total_capital:
+    source_column: "Total capital base"
+    description: Total capital base in $ million.
+    unit: AUD millions
+    role: measure
+    dtype: float
+  risk_weighted_assets:
+    source_column: "Total risk-weighted assets"
+    description: Total risk-weighted assets in $ million (denominator of the capital ratios).
+    unit: AUD millions
+    role: measure
+    dtype: float
+  cet1_ratio:
+    source_column: "Common Equity Tier 1 capital ratio"
+    description: CET1 capital ratio (CET1 / RWA) as a decimal (0.105 = 10.5%).
+    unit: ratio
+    role: measure
+    dtype: float
+  tier1_ratio:
+    source_column: "Tier 1 capital ratio"
+    description: Tier 1 capital ratio (Tier 1 / RWA) as a decimal.
+    unit: ratio
+    role: measure
+    dtype: float
+  total_capital_ratio:
+    source_column: "Total capital ratio"
+    description: Total capital ratio (Total capital / RWA) as a decimal.
+    unit: ratio
+    role: measure
+    dtype: float
+dimension_values:
+  institution:
+    permissive: true
+    values:
+      cba: Commonwealth Bank of Australia
+      commbank: Commonwealth Bank of Australia
+      commonwealth_bank: Commonwealth Bank of Australia
+      westpac: Westpac Banking Corporation
+      nab: National Australia Bank Limited
+      national_australia_bank: National Australia Bank Limited
+      anz: Australia and New Zealand Banking Group Limited
+      australia_new_zealand_banking_group: Australia and New Zealand Banking Group Limited
+      macquarie: Macquarie Bank Limited
+      ing: ING Bank (Australia) Limited
+      bank_of_queensland: Bank of Queensland Limited
+      boq: Bank of Queensland Limited
+      bendigo_and_adelaide_bank: Bendigo and Adelaide Bank Limited
+      bendigo: Bendigo and Adelaide Bank Limited
+      suncorp: Suncorp-Metway Limited
+      amp: AMP Bank Limited
+  sector:
+    major_banks: Major banks
+    other_domestic: Other domestic banks
+    other_domestic_banks: Other domestic banks
+    foreign_subsidiary: Foreign subsidiary banks
+    foreign_subsidiary_banks: Foreign subsidiary banks
+    foreign_branch: Foreign branch banks
+    foreign_branch_banks: Foreign branch banks
+    mutual_adis: Mutual ADIs
+    other_adis: Other ADIs
+  mutual:
+    "y": "Y"
+    "yes": "Y"
+    "n": "N"
+    "no": "N"

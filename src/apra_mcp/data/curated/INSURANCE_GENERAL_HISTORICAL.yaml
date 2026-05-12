@@ -1,0 +1,128 @@
+id: INSURANCE_GENERAL_HISTORICAL
+name: General Insurance Performance Statistics — historical (pre-AASB17, Dec 2002 to June 2023)
+description: |
+  Long-format historical general insurance database covering ~21 years of
+  quarterly data, December 2002 to June 2023. Reported on the pre-AASB-17
+  framework (now superseded). ~141,800 rows — heavy file (~7 MB). Use this for
+  long-run historical analysis; for current data use INSURANCE_GENERAL. Note
+  that values cannot be directly spliced across the Q3-2023 break.
+  Source: APRA Quarterly General Insurance Performance Statistics — historical
+  data XLSX.
+period_coverage: December 2002 → June 2023
+update_frequency: archived (no further updates)
+source_url: https://www.apra.gov.au/quarterly-general-insurance-performance-statistics
+download_url: https://www.apra.gov.au/sites/default/files/2025-06/Quarterly%20general%20insurance%20performance%20statistics%20database%20%28historical%20data%29%20December%202002%20to%20June%202023.xlsx
+format: xlsx
+sheet: Data
+header_row: 1
+layout: wide
+cache_kind: data
+period_column: Reporting date
+framework:
+  current_basis: pre-AASB17
+  break_date: "2023-06-30"
+  break_reason: Final reporting period before AASB 17 Insurance Contracts + capital framework change. Data is on the now-superseded basis.
+  historical_dataset: null
+search_keywords:
+  - general insurance
+  - historical
+  - archive
+  - pre aasb 17
+  - long run
+  - 20 year
+  - back series
+  - gi history
+discovery:
+  landing_url: https://www.apra.gov.au/quarterly-general-insurance-performance-statistics
+  filename_pattern: '(?i)general\s+insurance.*historical.*database'
+  prefer_database: true
+columns:
+  period:
+    source_column: "Reporting date"
+    description: Quarter end date.
+    role: dimension
+    dtype: date
+  industry_segment_group:
+    source_column: "Industry segment group"
+    description: Higher-level segment grouping (Direct insurer, Reinsurer, Total industry).
+    role: dimension
+    dtype: string
+    permissive: true
+  industry_segment:
+    source_column: "Industry segment"
+    description: Specific industry segment.
+    role: dimension
+    dtype: string
+    permissive: true
+  subject:
+    source_column: "Subject"
+    description: Top-level subject area.
+    role: dimension
+    dtype: string
+    permissive: true
+  category_group:
+    source_column: "Category group"
+    description: Category grouping.
+    role: dimension
+    dtype: string
+    permissive: true
+  category:
+    source_column: "Category"
+    description: Specific category (Premium, Claims, etc.).
+    role: dimension
+    dtype: string
+    permissive: true
+  data_item:
+    source_column: "Data item"
+    description: Specific metric (e.g. "Gross written premium").
+    role: dimension
+    dtype: string
+    permissive: true
+  counterparty_grade:
+    source_column: "Counterparty grade"
+    description: Counterparty credit grade.
+    role: dimension
+    dtype: string
+    permissive: true
+  class_of_business_group:
+    source_column: "Class of business group"
+    description: Class-of-business higher-level group.
+    role: dimension
+    dtype: string
+    permissive: true
+  class_of_business_category:
+    source_column: "Class of business category"
+    description: Class-of-business category.
+    role: dimension
+    dtype: string
+    permissive: true
+  class_of_business:
+    source_column: "Class of business"
+    description: Specific class of insurance business.
+    role: dimension
+    dtype: string
+    permissive: true
+  geographic_region:
+    source_column: "Geographic region"
+    description: Geographic disaggregation.
+    role: dimension
+    dtype: string
+    permissive: true
+  calculation_basis:
+    source_column: "Calculation basis"
+    description: "'Flow (quarterly)', 'Flow (annual)', 'Stock'."
+    role: dimension
+    dtype: string
+  value:
+    source_column: "Value"
+    description: Reported value in $ (Australian dollars).
+    unit: AUD
+    role: measure
+    dtype: float
+dimension_values:
+  industry_segment_group:
+    permissive: true
+    values:
+      direct_insurer: Direct insurer
+      reinsurer: Reinsurer
+      total_industry: Total industry
