@@ -19,6 +19,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   rba-mcp), which all carry CC-BY 3.0 AU attribution.
 - Tests updated; 229 unit + 16 live remain green.
 
+### Dataset scope — what shipped and what's deferred
+
+The v0.1.0 spec listed six curated datasets including `ADI_PROPERTY_EXPOSURES`
+and `SUPER_AGGREGATE`. After inspecting the actual APRA XLSX layouts, the
+final v0.1.x cut substitutes:
+
+- **Shipped** (7 datasets, all long-format / wide layout — cleaner to parse,
+  easier to filter):
+  - `ADI_KEY_STATS` — per-bank capital + key ratios (Table 1 from the ADI
+    centralised publication; entity-level, the more valuable cut)
+  - `ADI_RISK_WEIGHTED_ASSETS` — per-bank RWA breakdown (Table 2 from the
+    same file; a free bonus that emerged from the inspection pass)
+  - `SUPER_FUND_LEVEL` — fund-by-fund detail
+  - `INSURANCE_GENERAL` + `INSURANCE_GENERAL_HISTORICAL`
+  - `LIFE_INSURANCE` + `LIFE_INSURANCE_HISTORICAL`
+
+- **Deferred to v0.2** (both are transposed multi-tab industry-aggregate
+  files that need a transposed-layout parser before they can ship cleanly):
+  - `ADI_PROPERTY_EXPOSURES` — industry-aggregate commercial property
+    exposures + residential mortgage approvals from the ADI property file
+  - `SUPER_AGGREGATE` — quarterly superannuation performance industry totals
+    (the multi-tab presentational file, distinct from `SUPER_FUND_LEVEL`)
+
+Net coverage is broader than the original spec (entity-level RWA is a clear
+value-add for any agent that asks "which banks carry the most credit risk").
+
 ## [0.1.0] — 2026-05-12
 
 ### Initial release
