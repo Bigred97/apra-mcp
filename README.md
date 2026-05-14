@@ -1,9 +1,10 @@
 # apra-mcp
 
-[![tests](https://github.com/Bigred97/apra-mcp/actions/workflows/test.yml/badge.svg)](https://github.com/Bigred97/apra-mcp/actions/workflows/test.yml)
 [![PyPI](https://img.shields.io/pypi/v/apra-mcp.svg)](https://pypi.org/project/apra-mcp/)
 [![Python](https://img.shields.io/pypi/pyversions/apra-mcp.svg)](https://pypi.org/project/apra-mcp/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![License](https://img.shields.io/pypi/l/apra-mcp.svg)](https://github.com/Bigred97/apra-mcp/blob/main/LICENSE)
+[![Tests](https://github.com/Bigred97/apra-mcp/actions/workflows/test.yml/badge.svg)](https://github.com/Bigred97/apra-mcp/actions/workflows/test.yml)
+[![CodeQL](https://github.com/Bigred97/apra-mcp/actions/workflows/codeql.yml/badge.svg)](https://github.com/Bigred97/apra-mcp/actions/workflows/codeql.yml)
 [![Glama MCP server quality](https://glama.ai/mcp/servers/Bigred97/apra-mcp/badges/score.svg)](https://glama.ai/mcp/servers/Bigred97/apra-mcp)
 
 **MCP server for Australian Prudential Regulation Authority statistics.** Plain-English access to per-bank capital ratios, fund-by-fund superannuation, and post-AASB17 life + general insurance — every prudentially-regulated entity in Australia, every quarter, from a single `uvx` command.
@@ -111,13 +112,18 @@ Data sourced from the Australian Prudential Regulation Authority. Licensed under
 
 ---
 
-## Sister packages
+## Sister MCPs (Australian Public Data portfolio)
 
-- [abs-mcp](https://github.com/Bigred97/abs-mcp) — ABS census + economic statistics
-- [rba-mcp](https://github.com/Bigred97/rba-mcp) — RBA F-tables (cash rate, FX rates, mortgage rates)
-- [ato-mcp](https://github.com/Bigred97/ato-mcp) — ATO tax statistics + ACNC charities register
+- [abs-mcp](https://pypi.org/project/abs-mcp/) — Australian Bureau of Statistics (CPI, unemployment, ERP, building approvals)
+- [rba-mcp](https://pypi.org/project/rba-mcp/) — Reserve Bank of Australia (cash rate, lending stats, exchange rates)
+- [ato-mcp](https://pypi.org/project/ato-mcp/) — Australian Taxation Office (tax stats, ACNC charities)
 - **apra-mcp** — this one. Banks, super, insurance.
-- [au-weather-mcp](https://github.com/Bigred97/au-weather-mcp) — Australian weather
+- [aihw-mcp](https://pypi.org/project/aihw-mcp/) — Australian Institute of Health and Welfare
+- [asic-mcp](https://pypi.org/project/asic-mcp/) — Australian Securities and Investments Commission (company registers)
+- [aemo-mcp](https://pypi.org/project/aemo-mcp/) — Australian Energy Market Operator (NEM dispatch, spot prices, generation)
+- [au-weather-mcp](https://pypi.org/project/au-weather-mcp/) — Open-Meteo (Bureau of Meteorology aggregator)
+- [wgea-mcp](https://pypi.org/project/wgea-mcp/) — Workplace Gender Equality Agency
+- [aus-identity](https://pypi.org/project/aus-identity/) — Postcode / state / ABN normalisation helper used by all sisters
 
 ---
 

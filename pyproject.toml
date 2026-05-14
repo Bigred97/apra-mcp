@@ -11,8 +11,10 @@ requires-python = ">=3.11"
 license = { text = "MIT" }
 authors = [{ name = "Harry Vass" }]
 keywords = [
-    "mcp", "apra", "australia", "banking", "insurance", "superannuation",
-    "prudential", "regulation", "capital-ratios", "claude", "fastmcp",
+    "mcp", "model-context-protocol", "claude", "fastmcp",
+    "apra", "banking", "insurance", "superannuation", "prudential",
+    "regulation", "capital-ratios",
+    "australia", "australian", "public-data", "government-data",
     "fintech", "regtech",
 ]
 classifiers = [
@@ -49,7 +51,11 @@ apra-mcp = "apra_mcp.server:main"
 
 [project.urls]
 Homepage = "https://github.com/Bigred97/apra-mcp"
+Documentation = "https://github.com/Bigred97/apra-mcp#readme"
+Repository = "https://github.com/Bigred97/apra-mcp"
 Issues = "https://github.com/Bigred97/apra-mcp/issues"
+Changelog = "https://github.com/Bigred97/apra-mcp/blob/main/CHANGELOG.md"
+PyPI = "https://pypi.org/project/apra-mcp/"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/apra_mcp"]
