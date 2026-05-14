@@ -81,6 +81,14 @@ Every response is the same shape — `dataset_id`, `dataset_name`, `query`, `per
 > (`2024`), year-months (`2025-06`), or quarter shorthand (`2025-Q4`) — all
 > normalised internally.
 
+> **Cross-source compatibility.** The `state_territory` filter on
+> `INSURANCE_GENERAL` accepts canonical state codes (`"NSW"`), full names
+> (`"New South Wales"`), case-insensitive variants (`"nsw"`), ISO 3166-2
+> (`"AU-NSW"`), and 4-digit postcodes (`"2000"` → New South Wales). Powered
+> by [`aus-identity`](https://pypi.org/project/aus-identity/) — the same
+> input format works across abs-mcp, ato-mcp, apra-mcp, aihw-mcp, and
+> asic-mcp.
+
 ---
 
 ## Reliability — 3-tier URL resolution

@@ -5,6 +5,40 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] — 2026-05-15
+
+### Added — aus-identity integration
+
+The cross-source compatibility moat for the AU public-data MCP stack.
+The `state_territory` filter on INSURANCE_GENERAL (and any future
+state-aware APRA dataset) now accepts the full canonical menu:
+
+- Canonical short codes (`NSW`, `VIC`, `QLD`, `SA`, `WA`, `TAS`, `NT`, `ACT`)
+- Case-insensitive variants (`nsw`, `Nsw`)
+- Full names — APRA's canonical form (`New South Wales`, `Victoria`)
+- ISO 3166-2 (`AU-NSW`, `AU-VIC`)
+- Common aliases (`Tassie`)
+- 4-digit postcodes (`2000` → `New South Wales`, `2600` → `Australian Capital Territory`)
+
+All inputs normalise to APRA's canonical long-form so the filter applies
+correctly regardless of input shape. Powered by
+[`aus-identity`](https://pypi.org/project/aus-identity/).
+
+- **`aus-identity>=0.1.0`** added as a new top-level dependency.
+- **`curated.translate_filter_value`** runs state-shaped dim values through
+  `aus_identity.normalize_state` + `state_full_name` (or
+  `postcode_to_state` + `state_full_name` for postcode input) before
+  falling back to the existing permissive pass-through. Values that
+  don't match any state form pass through unchanged — backward-compatible
+  for legacy buckets like "Total Australia".
+- **7 new unit tests** in `tests/test_curated.py` covering short code,
+  lowercase, full name, ISO 3166-2, postcode, ACT-postcode boundary, and
+  non-state pass-through.
+
+### Backward compatibility
+
+No breaking changes — every input that worked in 0.1.4 still works.
+
 ## [0.1.4] — 2026-05-15
 
 ### Error-message sweep — rejection messages now suggest the correction

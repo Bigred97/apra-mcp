@@ -101,6 +101,82 @@ def test_translate_filter_value_unknown_strict_raises():
         curated.translate_filter_value(cd, "sector", "atlantis_banks")
 
 
+# ---- aus-identity cross-source normalisation on state_territory ----
+
+
+def test_state_territory_accepts_short_code():
+    """`state_territory='NSW'` resolves to APRA's canonical 'New South Wales'."""
+    cd = curated.get("INSURANCE_GENERAL")
+    assert cd is not None
+    assert (
+        curated.translate_filter_value(cd, "state_territory", "NSW")
+        == "New South Wales"
+    )
+
+
+def test_state_territory_accepts_lowercase_short_code():
+    """`state_territory='nsw'` (lowercase) also resolves to 'New South Wales'."""
+    cd = curated.get("INSURANCE_GENERAL")
+    assert cd is not None
+    assert (
+        curated.translate_filter_value(cd, "state_territory", "nsw")
+        == "New South Wales"
+    )
+
+
+def test_state_territory_accepts_full_name():
+    """`state_territory='Queensland'` is already in canonical form."""
+    cd = curated.get("INSURANCE_GENERAL")
+    assert cd is not None
+    assert (
+        curated.translate_filter_value(cd, "state_territory", "Queensland")
+        == "Queensland"
+    )
+
+
+def test_state_territory_accepts_iso_3166_form():
+    """`state_territory='AU-VIC'` resolves to 'Victoria'."""
+    cd = curated.get("INSURANCE_GENERAL")
+    assert cd is not None
+    assert (
+        curated.translate_filter_value(cd, "state_territory", "AU-VIC")
+        == "Victoria"
+    )
+
+
+def test_state_territory_accepts_postcode_routing():
+    """`state_territory='3000'` (Melbourne CBD) routes to 'Victoria'."""
+    cd = curated.get("INSURANCE_GENERAL")
+    assert cd is not None
+    assert (
+        curated.translate_filter_value(cd, "state_territory", "3000")
+        == "Victoria"
+    )
+
+
+def test_state_territory_postcode_in_act_routes_correctly():
+    """`state_territory='2600'` (Parliament House) routes to ACT, not NSW."""
+    cd = curated.get("INSURANCE_GENERAL")
+    assert cd is not None
+    assert (
+        curated.translate_filter_value(cd, "state_territory", "2600")
+        == "Australian Capital Territory"
+    )
+
+
+def test_state_territory_non_state_input_falls_through():
+    """A value that isn't a state name or postcode is passed through unchanged
+    (permissive dim, free-form). The downstream filter just won't match any
+    rows — same behaviour as before aus_identity."""
+    cd = curated.get("INSURANCE_GENERAL")
+    assert cd is not None
+    # 'Total Australia' is a known APRA bucket; not a state, but permissive.
+    assert (
+        curated.translate_filter_value(cd, "state_territory", "Total Australia")
+        == "Total Australia"
+    )
+
+
 def test_resolve_measure_keys_none_returns_all():
     cd = curated.get("ADI_KEY_STATS")
     assert cd is not None

@@ -18,6 +18,46 @@ from pathlib import Path
 from typing import Literal
 
 import yaml
+from aus_identity import (
+    is_valid_postcode,
+    normalize_state,
+    postcode_to_state,
+    state_full_name,
+)
+
+
+# Dim names whose values are state/region references. When `translate_filter_value`
+# encounters one, the user input is run through aus_identity first so "NSW",
+# "nsw", "New South Wales", "AU-NSW", "Tassie", and 4-digit postcodes all
+# resolve to APRA's canonical long-form ("New South Wales").
+_STATE_LIKE_DIM_NAMES = frozenset({"state_territory", "state", "region"})
+
+
+def _normalise_state_to_full_name(user_value: str) -> str | None:
+    """Try to resolve a user value to APRA's canonical long-form state name.
+
+    Returns the long-form ("New South Wales", "Victoria", …) on success, or
+    `None` if the input isn't recognisable as a state reference (caller
+    falls back to existing dim_values / permissive logic).
+    """
+    s = user_value.strip()
+    if not s:
+        return None
+    # Postcode route first (digits only).
+    if s.isdigit() and is_valid_postcode(s):
+        try:
+            code = postcode_to_state(s)
+        except ValueError:
+            return None
+    else:
+        try:
+            code = normalize_state(s)
+        except ValueError:
+            return None
+    try:
+        return state_full_name(code)
+    except ValueError:
+        return None
 
 
 Layout = Literal["wide", "transposed"]
@@ -346,7 +386,18 @@ def translate_filter_value(
     Free-form (no enum) and permissive dims pass values through unchanged.
     Unknown values raise ValueError with a "Did you mean?" suggestion when
     a near-match exists (RapidFuzz WRatio ≥ 70).
+
+    State-shaped filters (`state_territory`, `state`, `region`) accept the
+    full cross-source menu via `aus_identity` — short codes, full names,
+    ISO 3166-2, aliases, and 4-digit postcodes all resolve to the canonical
+    long-form name APRA uses internally (`New South Wales`, `Victoria`, …).
     """
+    # aus_identity wire-in: state-shaped dim, free-form/permissive — normalise
+    # the user input to the canonical long-form name APRA stores.
+    if dim_key in _STATE_LIKE_DIM_NAMES:
+        normalised = _normalise_state_to_full_name(user_value)
+        if normalised is not None:
+            return normalised
     dv = cd.dimension_values.get(dim_key)
     if dv is None or dv.values is None:
         return user_value
