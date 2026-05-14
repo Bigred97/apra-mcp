@@ -23,7 +23,6 @@ from typing import Any
 import pandas as pd
 
 from .curated import (
-    CuratedColumn,
     CuratedDataset,
     dimension_columns,
     id_columns,

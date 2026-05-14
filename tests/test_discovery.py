@@ -12,7 +12,6 @@ from apra_mcp.client import APRAClient
 from apra_mcp.discovery import (
     DiscoveryError,
     DiscoverySpec,
-    ResolvedURL,
     _filename_date_score,
     load_seed_manifest,
     resolve_for_dataset,

@@ -1,12 +1,10 @@
 """top_n ranking-tool tests against offline fixtures via monkeypatched fetch."""
 from __future__ import annotations
 
-from datetime import datetime, timezone
 
-import pandas as pd
 import pytest
 
-from apra_mcp import curated, server
+from apra_mcp import server
 from apra_mcp.parsing import drop_blank_rows, read_xlsx
 
 

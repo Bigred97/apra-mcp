@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import pytest
 
-from apra_mcp import curated, server
+from apra_mcp import server
 from apra_mcp.parsing import drop_blank_rows, read_xlsx
 
 

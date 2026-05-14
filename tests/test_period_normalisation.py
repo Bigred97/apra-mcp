@@ -7,7 +7,6 @@ expands them to the right inclusive bound before string comparison.
 """
 from __future__ import annotations
 
-import pytest
 
 from apra_mcp.shaping import _expand_period_input
 
