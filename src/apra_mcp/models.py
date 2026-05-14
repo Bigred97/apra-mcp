@@ -104,7 +104,19 @@ class DataResponse(BaseModel):
     source: str = "Australian Prudential Regulation Authority"
     attribution: str = _APRA_ATTRIBUTION
     retrieved_at: datetime
-    apra_url: str                            # canonical APRA landing page
+    source_url: str = Field(
+        description=(
+            "Canonical click-through URL. Same value as apra_url; both populated "
+            "for backward compat."
+        )
+    )
+    apra_url: str = Field(
+        description=(
+            "Click-through URL for this dataset's source page. apra-mcp legacy "
+            "name — prefer source_url (canonical) for new code. Both fields are "
+            "populated identically."
+        )
+    )
     download_url: str | None = None          # actual XLSX URL used (post-discovery)
     framework: FrameworkInfo | None = None
     stale: bool = False

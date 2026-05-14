@@ -176,7 +176,9 @@ def test_attribution_string_correct_for_apra():
     from datetime import datetime, timezone
     resp = DataResponse(
         dataset_id="X", dataset_name="X",
-        retrieved_at=datetime.now(timezone.utc), apra_url="https://www.apra.gov.au/x",
+        retrieved_at=datetime.now(timezone.utc),
+        source_url="https://www.apra.gov.au/x",
+        apra_url="https://www.apra.gov.au/x",
     )
     assert "Creative Commons Attribution 3.0 Australia" in resp.attribution
     assert "creativecommons.org/licenses/by/3.0/au" in resp.attribution
@@ -280,3 +282,29 @@ def test_stale_flag_propagates():
     )
     assert resp.stale is True
     assert resp.stale_reason == "seed fallback"
+
+
+def test_data_response_has_source_url_canonical_field(adi_key_stats_xlsx):
+    """Wave-2 interop: both source_url and apra_url are populated and equal."""
+    cd = curated.get("ADI_KEY_STATS")
+    df = _parse(cd, adi_key_stats_xlsx)
+    resp = build_response(
+        cd=cd, df=df, filters={}, measures="cet1_ratio",
+        start_period=None, end_period=None, fmt="records", user_query={},
+    )
+    assert resp.source_url is not None
+    assert resp.source_url == resp.apra_url
+    assert resp.source_url == cd.source_url
+
+
+def test_data_response_source_url_present_on_empty_df():
+    """source_url populated even on the empty-dataframe code path."""
+    cd = curated.get("ADI_KEY_STATS")
+    import pandas as pd
+    df = pd.DataFrame()
+    resp = build_response(
+        cd=cd, df=df, filters={}, measures=None,
+        start_period=None, end_period=None, fmt="records", user_query={},
+    )
+    assert resp.source_url == resp.apra_url
+    assert resp.source_url == cd.source_url
