@@ -1,0 +1,275 @@
+# apra-mcp — full reference
+
+> MCP server exposing Australian Prudential Regulation Authority statistics through 6 plain-English tools.
+
+apra-mcp fetches APRA's quarterly XLSX statistical reports via a 3-tier URL resolver. 7 curated datasets cover ADIs (banks), super funds, life insurance, and general insurance. This document is a self-contained integration reference.
+
+---
+
+## Install
+
+```bash
+uvx --upgrade apra-mcp
+```
+
+### Claude Desktop
+
+```json
+{
+  "mcpServers": {
+    "apra": { "command": "uvx", "args": ["--upgrade", "apra-mcp"] }
+  }
+}
+```
+
+### Claude Code
+
+```bash
+claude mcp add apra --command uvx --args -- --upgrade apra-mcp
+```
+
+---
+
+## Trust contract
+
+Every `DataResponse` carries:
+
+```
+source             "Australian Prudential Regulation Authority (APRA)"
+source_url         https://www.apra.gov.au/quarterly-statistics (or specific landing page)
+download_url       the actual XLSX URL used (post-discovery)
+attribution        full CC-BY 3.0 Australia attribution string with licence URL
+retrieved_at       UTC timestamp
+server_version     importlib.metadata.version("apra-mcp")
+framework          insurance only — {basis, break_date, break_reason, historical_dataset}
+stale              True when serving cached fallback after upstream error or seed-manifest fallback
+stale_reason       human-readable when stale=True
+truncated_at       int | None
+```
+
+Cache TTLs: 7-day data XLSX, 6-hour landing-page HTML (ETag conditional-GET refreshable), 6-hour discovery resolution. Graceful degradation: when apra.gov.au is intermittent (it commonly is) we fall back to the bundled seed manifest, then to the last cached payload, setting `stale=True` with a human-readable reason.
+
+**CC-BY 3.0 Australia (NOT 4.0 International) — APRA-specific.** Don't use the 4.0 attribution string by accident.
+
+---
+
+## 3-tier URL resolution
+
+APRA publishes XLSX at date-versioned paths that change every quarter. apra-mcp resolves them through three tiers:
+
+1. **Live scrape** — fetch the canonical APRA landing page (ETag conditional-GET), regex-extract the .xlsx href matching the dataset's filename pattern, pick the latest-dated match. Cached 6h.
+2. **Bundled seed manifest** — when the live scrape fails, fall back to `data/seed_urls.json` shipped in the wheel. CI refreshes the manifest daily. Response is flagged `stale=true` with an honest reason.
+3. **YAML default** — last-resort URL from the curated YAML.
+
+Net effect: a fresh `uvx apra-mcp` always gets the current quarter; a 3-month-old install still works because the seed manifest is refreshed and `--upgrade` pulls a new wheel.
+
+---
+
+## Framework break (insurance only)
+
+APRA changed the reporting framework on 1 July 2023 (AASB 17 Insurance Contracts + capital framework revision). Pre- and post-break data are **not directly comparable** — APRA's own guidance is explicit. apra-mcp ships paired datasets:
+
+- `INSURANCE_GENERAL` (post-AASB17) + `INSURANCE_GENERAL_HISTORICAL` (pre-AASB17)
+- `LIFE_INSURANCE` (post-AASB17) + `LIFE_INSURANCE_HISTORICAL` (pre-AASB17)
+
+Every insurance response includes a `framework` block surfacing the break + a `historical_dataset` cross-reference.
+
+---
+
+## Tools
+
+### search_datasets(query, limit=10)
+
+```python
+await search_datasets("bank capital cet1")
+# → [{id: 'ADI_KEY_STATS', name: 'ADI Key Statistics — entity-level capital', ...}]
+```
+
+### describe_dataset(dataset_id)
+
+Returns `DatasetDetail` with id, name, period_coverage, dimensions, measures, source_url, download_url, and (insurance only) `framework`.
+
+### get_data(dataset_id, filters=None, measures=None, start_period=None, end_period=None, format="records")
+
+Plain-English filter keys + alias-resolved values. Permissive dimensions support trailing-star wildcards (e.g. `{"institution": "macquarie*"}` for substring match). Period format: `YYYY-MM-DD` (e.g. `"2024-12-31"`), `YYYY-Qx` (e.g. `"2024-Q4"`), or `YYYY`.
+
+```python
+# CBA's CET1 ratio over time
+await get_data("ADI_KEY_STATS",
+               filters={"institution": "cba"},
+               measures="cet1_ratio")
+
+# Major banks' total capital, last 5 quarters
+await get_data("ADI_KEY_STATS",
+               filters={"sector": "major_banks"},
+               measures="total_capital",
+               start_period="2024-01-01")
+
+# Total industry gross written premium (general insurance)
+await get_data("INSURANCE_GENERAL",
+               filters={"data_item": "Gross written premium",
+                        "industry_segment": "total_industry"})
+```
+
+### latest(dataset_id, filters=None, measures=None)
+
+```python
+await latest("ADI_KEY_STATS", filters={"institution": "cba"})
+```
+
+### top_n(dataset_id, measure, n=10, filters=None, direction="top")
+
+```python
+# Biggest 10 banks by total capital, latest quarter
+await top_n("ADI_KEY_STATS", "total_capital", n=10,
+            filters={"period": "2025-12-31"})
+
+# Most members per super fund
+await top_n("SUPER_FUND_LEVEL", "total_member_accounts", n=10,
+            filters={"period": "2025-12-31"})
+
+# 5 lowest CET1 ratios in the latest quarter
+await top_n("ADI_KEY_STATS", "cet1_ratio", n=5, direction="bottom",
+            filters={"period": "2025-12-31"})
+```
+
+### list_curated()
+
+```python
+list_curated()
+# → ['ADI_KEY_STATS', 'ADI_RISK_WEIGHTED_ASSETS', 'INSURANCE_GENERAL',
+#    'INSURANCE_GENERAL_HISTORICAL', 'LIFE_INSURANCE',
+#    'LIFE_INSURANCE_HISTORICAL', 'SUPER_FUND_LEVEL']
+```
+
+---
+
+## Curated datasets (7)
+
+### ADI_KEY_STATS
+
+Per-bank CET1 / Tier 1 / Total capital + RWA + ratios.
+
+- period_coverage: latest quarter snapshot (rolling)
+- coverage: ~150 entities
+- filters: institution (cba, westpac, nab, anz, macquarie, suncorp, ...), sector (major_banks, regional_banks, ...)
+- measures: cet1_ratio, tier1_ratio, total_capital_ratio, total_capital, rwa, ...
+- update_frequency: quarterly
+- source: APRA Quarterly Authorised Deposit-taking Institution Statistics
+
+### ADI_RISK_WEIGHTED_ASSETS
+
+Per-bank RWA breakdown by risk type.
+
+- period_coverage: latest quarter
+- filters: institution, sector, risk_type (credit_rwa, operational_rwa, market_rwa, irrbb)
+- update_frequency: quarterly
+
+### SUPER_FUND_LEVEL
+
+Fund-by-fund members, benefits, demographics.
+
+- period_coverage: latest quarter
+- coverage: ~140 APRA-regulated super funds
+- filters: fund_name, fund_type (industry / retail / corporate / public_sector)
+- measures: total_member_accounts, total_members_benefits, ...
+- update_frequency: quarterly
+
+### INSURANCE_GENERAL
+
+Post-AASB17 general insurance — long-format database.
+
+- period_coverage: Sep 2023 → latest
+- coverage: ~24k rows × ~10 quarters
+- filters: data_item, industry_segment, class_of_business, state_territory
+- measures: value (semantic measure lives in `data_item` dimension)
+- framework: post-AASB17
+
+### INSURANCE_GENERAL_HISTORICAL
+
+Pre-AASB17 general insurance archive — NOT directly comparable to current.
+
+- period_coverage: Dec 2002 → Jun 2023
+- framework: pre-AASB17
+
+### LIFE_INSURANCE
+
+Post-AASB17 life insurance — long-format database.
+
+- period_coverage: Sep 2023 → latest
+- coverage: ~10k rows × ~10 quarters
+- filters: data_item, industry_segment, class_of_business
+
+### LIFE_INSURANCE_HISTORICAL
+
+Pre-AASB17 life insurance archive.
+
+- period_coverage: Jun 2008 → Jun 2023
+
+---
+
+## Filter shape — alias resolution + wildcards
+
+Permissive dimensions (institution, fund_name, data_item) accept any string including:
+
+- Canonical short alias: `{"institution": "cba"}`
+- Full name: `{"institution": "Commonwealth Bank of Australia"}`
+- List: `{"institution": ["cba", "westpac", "nab", "anz"]}`
+- Trailing-star wildcard for substring: `{"institution": "macquarie*"}`
+
+---
+
+## Worked example
+
+```python
+resp = await get_data("ADI_KEY_STATS",
+                      filters={"institution": "cba"},
+                      measures="cet1_ratio",
+                      start_period="2024-01-01")
+```
+
+```json
+{
+  "dataset_id": "ADI_KEY_STATS",
+  "dataset_name": "ADI Key Statistics — entity-level capital",
+  "query": {
+    "filters": {"institution": "cba"},
+    "measures": "cet1_ratio",
+    "start_period": "2024-01-01"
+  },
+  "period": {"start": "2024-03-31", "end": "2025-12-31"},
+  "unit": "%",
+  "row_count": 8,
+  "records": [
+    {"period": "2024-03-31", "value": 12.5, "measure": "cet1_ratio",
+     "dimensions": {"institution": "Commonwealth Bank of Australia",
+                    "sector": "Major banks"}, "unit": "%"},
+    ...
+  ],
+  "source": "Australian Prudential Regulation Authority (APRA)",
+  "apra_url": "https://www.apra.gov.au/quarterly-authorised-deposit-taking-institution-statistics",
+  "download_url": "https://www.apra.gov.au/sites/default/files/<date>-<file>.xlsx",
+  "framework": null,
+  "attribution": "Source: Australian Prudential Regulation Authority. Licensed under CC-BY 3.0 Australia (https://creativecommons.org/licenses/by/3.0/au/).",
+  "retrieved_at": "2026-05-15T01:14:22Z",
+  "server_version": "0.1.2",
+  "stale": false,
+  "stale_reason": null
+}
+```
+
+---
+
+## Cross-source pairings
+
+- [abs-mcp](https://pypi.org/project/abs-mcp/) for macro lending context (LEND_HOUSING) against per-bank ADI stats
+- [rba-mcp](https://pypi.org/project/rba-mcp/) for cash rate / mortgage rates context against bank capital trends
+- [ato-mcp](https://pypi.org/project/ato-mcp/) for corporate tax transparency on the same major banks
+- [asic-mcp](https://pypi.org/project/asic-mcp/) for ASIC's complementary banned-persons + AFS-licensee registers
+- [aus-identity](https://pypi.org/project/aus-identity/) for cross-source `state_territory` filter compatibility
+
+---
+
+## License
+
+apra-mcp server code is MIT-licensed. APRA data carries CC-BY 3.0 Australia; the attribution is echoed on every response.
