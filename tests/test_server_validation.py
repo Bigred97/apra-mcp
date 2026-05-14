@@ -151,7 +151,8 @@ async def test_get_data_measures_non_string_in_list():
 
 @pytest.mark.asyncio
 async def test_get_data_period_non_string():
-    with pytest.raises(ValueError, match="must be a string"):
+    # 12345 is out of the [1900, 2100] coerce-to-year range, so it's still rejected.
+    with pytest.raises(ValueError, match="out of range"):
         await server.get_data(
             "ADI_KEY_STATS", start_period=12345,  # type: ignore[arg-type]
         )
@@ -223,3 +224,83 @@ async def test_list_curated_returns_sorted_ids():
     assert ids == sorted(ids)
     assert "ADI_KEY_STATS" in ids
     assert "LIFE_INSURANCE" in ids
+
+
+# --- Int-year coercion (Wave 1 interop fix) ----------------------------------
+
+def test_validate_period_accepts_int_year():
+    """Bare int years are coerced to 'YYYY' string at the boundary."""
+    assert server._validate_period(2024, "start_period") == "2024"
+    assert server._validate_period(1907, "end_period") == "1907"
+    assert server._validate_period(2100, "start_period") == "2100"
+
+
+def test_validate_period_int_out_of_range_raises_helpful():
+    """Int years outside [1900, 2100] raise with a useful hint, not a TypeError."""
+    with pytest.raises(ValueError, match="out of range"):
+        server._validate_period(1800, "start_period")
+    with pytest.raises(ValueError, match="out of range"):
+        server._validate_period(2200, "end_period")
+    # Should still point users at the canonical forms.
+    with pytest.raises(ValueError, match="YYYY"):
+        server._validate_period(99, "start_period")
+
+
+def test_validate_period_rejects_bool_with_hint():
+    """bool is a subclass of int but must NOT be coerced silently."""
+    with pytest.raises(ValueError, match="bool"):
+        server._validate_period(True, "start_period")
+
+
+@pytest.mark.asyncio
+async def test_get_data_accepts_int_start_period():
+    """get_data accepts int start_period (LLM clients often send JSON ints)."""
+    # 1907 is well outside any APRA dataset's coverage, so this will yield zero
+    # rows — but it must not raise on type. The fetch path will succeed because
+    # the parsed-DataFrame cache is in play from earlier tests.
+    try:
+        resp = await server.get_data("ADI_KEY_STATS", start_period=2024)
+        # int got coerced — confirm by inspecting the echoed query.
+        assert resp.query.get("start_period") == "2024"
+    except ValueError as e:
+        # The only acceptable ValueError here is upstream fetch — NOT type.
+        assert "must be a string" not in str(e)
+        assert "type" not in str(e).lower() or "could not fetch" in str(e).lower()
+
+
+# --- Strengthened ValueError messages (Wave 1 interop fix) -------------------
+
+@pytest.mark.asyncio
+async def test_unknown_dataset_suggests_close_match():
+    """A near-miss dataset id surfaces a 'Did you mean ...?' hint."""
+    with pytest.raises(ValueError, match="Did you mean") as excinfo:
+        await server.get_data("ADI_KEYS")
+    assert "ADI_KEY_STATS" in str(excinfo.value)
+
+
+@pytest.mark.asyncio
+async def test_period_format_error_includes_examples_and_try():
+    """The canonical shape: <rejection>. Did you mean X?. Examples. Try <next-tool>."""
+    with pytest.raises(ValueError) as excinfo:
+        await server.get_data("ADI_KEY_STATS", start_period="?garbage?")
+    msg = str(excinfo.value)
+    assert "YYYY" in msg
+    assert "Example" in msg or "Try" in msg or "example" in msg
+
+
+@pytest.mark.asyncio
+async def test_period_swap_error_includes_format_hint():
+    """end < start error should remind users of the period formats."""
+    with pytest.raises(ValueError, match="YYYY") as excinfo:
+        await server.get_data(
+            "ADI_KEY_STATS", start_period="2025-01-01", end_period="2020-01-01",
+        )
+    assert "before start_period" in str(excinfo.value)
+
+
+@pytest.mark.asyncio
+async def test_format_error_includes_did_you_mean():
+    """A near-miss format value surfaces a 'Did you mean ...?' suggestion."""
+    with pytest.raises(ValueError, match="Did you mean") as excinfo:
+        await server.get_data("ADI_KEY_STATS", format="record")  # type: ignore[arg-type]
+    assert "records" in str(excinfo.value)

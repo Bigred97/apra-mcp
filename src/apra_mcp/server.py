@@ -83,19 +83,30 @@ async def reset_client_for_tests() -> None:
         _client = None
 
 
+def _fuzzy_suggest(query: str, candidates: list[str], cutoff: int = 60) -> str | None:
+    """Return the closest candidate string if it scores >= cutoff on RapidFuzz WRatio.
+
+    Falls back to None if rapidfuzz is unavailable or no match clears the bar.
+    The 60 cutoff is loose enough to catch realistic typos (e.g. 'ADI_KEYS' ->
+    'ADI_KEY_STATS') but tight enough to suppress spurious matches.
+    """
+    if not query or not candidates:
+        return None
+    try:
+        from rapidfuzz import fuzz, process
+    except ImportError:
+        return None
+    match = process.extractOne(query, candidates, scorer=fuzz.WRatio, score_cutoff=cutoff)
+    return match[0] if match else None
+
+
 def _curated_id_hint(user_id: str) -> str:
     """Build a 'Did you mean ...? Valid IDs: ...' fragment for unknown dataset IDs."""
     ids = curated.list_ids()
     if not ids:
         return " Try list_curated() to see available IDs."
-    try:
-        from rapidfuzz import fuzz, process
-        match = process.extractOne(
-            user_id.upper(), ids, scorer=fuzz.WRatio, score_cutoff=60,
-        )
-        suggestion = f" Did you mean {match[0]!r}?" if match else ""
-    except ImportError:
-        suggestion = ""
+    suggestion_str = _fuzzy_suggest(user_id.upper(), ids, cutoff=60)
+    suggestion = f" Did you mean {suggestion_str!r}?" if suggestion_str else ""
     return (
         f"{suggestion} Valid IDs: {', '.join(ids[:10])}"
         + ("..." if len(ids) > 10 else "")
@@ -141,19 +152,44 @@ def _validate_filters(filters: Any) -> dict[str, Any]:
 def _validate_period(value: Any, field_name: str) -> str | None:
     if value is None:
         return None
+    # LLM clients routinely send JSON ints (e.g. {"start_period": 2024}). Coerce
+    # 4-digit ints in a realistic year range to the canonical "YYYY" string at the
+    # boundary so we don't surface a confusing type error downstream.
+    if isinstance(value, bool):
+        # bool is a subclass of int; reject it explicitly before the int branch.
+        raise ValueError(
+            f"{field_name} must be a string or int year, got bool. "
+            f"Try {field_name}='2024' (year), '2024-Q4' (quarter), '2024-12-31' (date), "
+            "or 2024 (int year)."
+        )
+    if isinstance(value, int):
+        if 1900 <= value <= 2100:
+            value = str(value)
+        else:
+            raise ValueError(
+                f"{field_name} integer {value} out of range. "
+                f"For year-only periods pass a 4-digit year like 2024, or use string "
+                f"forms 'YYYY' (e.g. '2024'), 'YYYY-Qx' (e.g. '2024-Q4'), or "
+                f"'YYYY-MM-DD' (e.g. '2024-12-31'). "
+                f"Try {field_name}='2024'."
+            )
     if not isinstance(value, str):
         raise ValueError(
-            f"{field_name} must be a string like '2024-12-31', '2024-Q4', "
-            f"or '2024', got {type(value).__name__}."
+            f"{field_name} must be a string or int year, got {type(value).__name__}. "
+            f"Try {field_name}='2024' (year), '2024-Q4' (quarter), '2024-12-31' (date), "
+            "or 2024 (int year)."
         )
     s = value.strip()
     if not s:
         return None
     if not _PERIOD_PATTERN.match(s):
+        guess = s[:4] if s[:4].isdigit() else "2024"
         raise ValueError(
             f"{field_name} {value!r} has invalid format. "
-            "Use 'YYYY-MM-DD' (e.g. '2024-12-31'), 'YYYY-Qx' "
-            "(e.g. '2024-Q4'), or 'YYYY'."
+            "Period formats: 'YYYY' (e.g. '2024'), 'YYYY-Qx' (e.g. '2024-Q4'), or "
+            "'YYYY-MM-DD' (e.g. '2024-12-31'). "
+            f"Did you mean {guess!r}? "
+            f"Example: get_data('ADI_KEY_STATS', start_period='2024-Q1', end_period='2024-Q4')."
         )
     return s
 
@@ -467,16 +503,24 @@ async def _get_data_impl(
     else:
         raise ValueError(
             f"format must be a string, got {type(fmt).__name__}. "
-            f"Valid options: {sorted(_VALID_FORMATS)}"
+            f"Valid options: {sorted(_VALID_FORMATS)}. "
+            "Try format='records' (default), 'series', or 'csv'."
         )
     if fmt_norm not in _VALID_FORMATS:
+        valid_sorted = sorted(_VALID_FORMATS)
+        suggestion = _fuzzy_suggest(fmt_norm, valid_sorted, cutoff=60)
+        suggest_msg = f"Did you mean {suggestion!r}? " if suggestion else ""
         raise ValueError(
-            f"Unknown format {fmt!r}. Valid options: {sorted(_VALID_FORMATS)}"
+            f"Unknown format {fmt!r}. {suggest_msg}"
+            f"Valid options: {valid_sorted}. "
+            "Try format='records' (default), 'series', or 'csv'."
         )
     if start_v and end_v and start_v > end_v:
         raise ValueError(
             f"end_period ({end_v}) is before start_period ({start_v}). "
-            "Try swapping them."
+            f"Try swapping them: start_period={end_v!r}, end_period={start_v!r}. "
+            "Period formats: 'YYYY' (e.g. '2024'), 'YYYY-Qx' (e.g. '2024-Q4'), or "
+            "'YYYY-MM-DD' (e.g. '2024-12-31')."
         )
 
     user_query: dict[str, Any] = {}
@@ -561,21 +605,22 @@ async def get_data(
         ),
     ] = None,
     start_period: Annotated[
-        str | None,
+        str | int | None,
         Field(
             description=(
                 "Inclusive start period. Format: 'YYYY-MM-DD' (e.g. '2024-01-01'), "
                 "'YYYY-Qx' (e.g. '2024-Q1'), or 'YYYY'. Matched against the dataset's "
-                "period_column (quarter-end date)."
+                "period_column (quarter-end date). Bare int years like 2024 are "
+                "coerced to '2024' automatically."
             ),
-            examples=["2024-01-01", "2024-Q1", "2024"],
+            examples=["2024-01-01", "2024-Q1", "2024", 2024],
         ),
     ] = None,
     end_period: Annotated[
-        str | None,
+        str | int | None,
         Field(
             description="Inclusive end period. Same format as start_period.",
-            examples=["2025-12-31", "2025-Q4"],
+            examples=["2025-12-31", "2025-Q4", 2025],
         ),
     ] = None,
     format: Annotated[
