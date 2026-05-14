@@ -26,7 +26,7 @@ from fastmcp import FastMCP
 from pydantic import Field
 
 from . import catalog, curated
-from .client import APRAAPIError, APRAClient
+from .client import APRAAPIError, APRAClient, get_stale_signal, reset_stale_signal
 from .discovery import DiscoverySpec, resolve_for_dataset
 from .models import (
     ColumnDetail,
@@ -401,6 +401,9 @@ async def _get_data_impl(
     fmt: Any,
     last_n: int | None = None,
 ) -> DataResponse:
+    # Reset the graceful-degradation flag at the start of each tool call so
+    # we only report staleness introduced by THIS call's fetches.
+    reset_stale_signal()
     norm_id = _normalize_dataset_id(dataset_id)
     cd = curated.get(norm_id)
     if cd is None:
@@ -442,6 +445,15 @@ async def _get_data_impl(
         user_query["end_period"] = end_v
 
     df, url_used, stale, stale_reason = await _fetch_and_parse(cd)
+    # Merge the byte-fetch stale signal (set when apra.gov.au is unreachable
+    # and we served a stale-cache fallback) with the discovery-layer signal.
+    # Either trigger marks the response stale; the discovery reason wins if
+    # both fired, because it's typically the more actionable "we couldn't
+    # find a fresh URL" message.
+    fetch_stale, fetch_reason = get_stale_signal()
+    if fetch_stale and not stale:
+        stale = True
+        stale_reason = fetch_reason
     return build_response(
         cd=cd,
         df=df,

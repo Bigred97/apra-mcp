@@ -5,6 +5,43 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.3] — 2026-05-15
+
+### Reliability — stale-cache fallback on upstream failure
+
+- **Graceful degradation when apra.gov.au is unreachable.** Previously, an
+  `httpx.HTTPStatusError` (5xx) or `httpx.RequestError` (DNS / connection
+  refused / timeout) from apra.gov.au surfaced as an `APRAAPIError` and
+  broke the agent's chain of reasoning mid-conversation. The byte-fetch
+  path now falls back to the most-recent cached payload (regardless of
+  TTL), and the response carries `stale=True` plus a human-readable
+  `stale_reason` like `"APRA API returned 503 for <url>; serving cached
+  payload from ~12 minute(s) ago"`. Mirrors abs-mcp 0.2.13.
+- New `Cache.get_stale(key)` returns `(payload, cached_at_epoch)` ignoring
+  TTL — the building block for the fallback path.
+- New `_stale_signal` ContextVar in `client.py` propagates the staleness
+  out through the discovery + fetch chain without threading return tuples
+  through every helper. Per-tool-call isolation via ContextVar so
+  concurrent MCP calls don't cross-contaminate.
+- The discovery layer's existing stale signal (seed-manifest fallback)
+  and the new byte-fetch signal are OR-merged; either trigger marks the
+  response stale.
+- The original `APRAAPIError` raise behaviour is preserved when there is
+  no cached payload to fall back to.
+
+### Trust contract
+
+- New `DataResponse.truncated_at: int | None`. Mirrors the abs-mcp /
+  rba-mcp / ato-mcp envelope — set when `latest()` or `top_n` caps a
+  large response and carries the pre-truncation row count. Currently
+  unused inside `build_response`; surfaces the field so agents can read
+  it uniformly across all four sisters.
+
+### Tests
+
+- 267 unit tests (up from 263 — 4 new covering stale fallback)
+- Zero-flake across 10 sequential runs
+
 ## [0.1.2] — 2026-05-13
 
 ### Bug fixes (real customer impact)

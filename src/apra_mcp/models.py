@@ -109,6 +109,10 @@ class DataResponse(BaseModel):
     framework: FrameworkInfo | None = None
     stale: bool = False
     stale_reason: str | None = None
+    # Set when `latest()` / `top_n` truncated a large response to a limit. The
+    # full pre-truncation row count goes here so agents can detect + surface
+    # the cap. Mirrors abs-mcp / rba-mcp / ato-mcp 0.2.x trust contract.
+    truncated_at: int | None = None
     server_version: str = Field(default_factory=lambda: _get_server_version())
 
 
