@@ -170,7 +170,10 @@ def _apply_filters(
                 needle = v_str.replace("*", "").replace("~", "").strip()
                 if not needle:
                     raise ValueError(
-                        f"Filter {user_key!r}: wildcard value reduced to empty after stripping '*'."
+                        f"Filter {user_key!r}: wildcard value reduced to empty "
+                        "after stripping '*' / '~'. Pass a substring to match, "
+                        "e.g. {'institution': 'macquarie*'} or "
+                        "{'institution': 'commonwealth~'}."
                     )
                 mask = out[user_key].astype("string").str.contains(
                     needle, case=False, na=False, regex=False,

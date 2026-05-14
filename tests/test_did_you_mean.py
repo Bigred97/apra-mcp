@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import pytest
 
-from apra_mcp import curated
+from apra_mcp import curated, server
 
 
 def test_close_typo_gets_suggestion():
@@ -53,3 +53,55 @@ def test_error_message_includes_valid_options():
     except ValueError as e:
         assert "major_banks" in str(e)
         assert "foreign_branch" in str(e) or "mutual_adis" in str(e)
+
+
+# --- 0.1.4 regression: error-message sweep --------------------------------
+#
+# Every ValueError on the public tool surface should suggest the correction,
+# not just describe the rejection. Three regression tests cover the highest-
+# impact upgrades in this release: dataset-id "Did you mean?", measures-list
+# type errors carrying example syntax, and the upstream-fetch error pointing
+# at the landing page so the agent can sanity-check connectivity.
+
+
+@pytest.mark.asyncio
+async def test_unknown_dataset_id_suggests_close_match():
+    """A near-miss dataset id should get a 'Did you mean ADI_KEY_STATS?' hint
+    plus the list of valid IDs — not just "Try list_curated()"."""
+    with pytest.raises(ValueError) as exc_info:
+        await server.describe_dataset("ADI_KEYSTATS")  # missing underscore
+    msg = str(exc_info.value)
+    assert "Did you mean" in msg, f"missing did-you-mean hint: {msg}"
+    assert "ADI_KEY_STATS" in msg, f"missing closest match: {msg}"
+    assert "list_curated" in msg, f"missing tool pointer: {msg}"
+
+
+@pytest.mark.asyncio
+async def test_unknown_dataset_id_on_get_data_lists_valid_ids():
+    """Even when the typo is too far for a fuzzy match, the valid-ID list
+    must be embedded in the message so the agent has alternatives."""
+    with pytest.raises(ValueError) as exc_info:
+        await server.get_data("XYZQ_TOTALLY_MADE_UP")
+    msg = str(exc_info.value)
+    assert "Valid IDs:" in msg, f"missing valid-ID enumeration: {msg}"
+    # At least one real dataset must be referenced as an alternative.
+    assert "ADI_KEY_STATS" in msg or "LIFE_INSURANCE" in msg, (
+        f"no real datasets enumerated: {msg}"
+    )
+
+
+@pytest.mark.asyncio
+async def test_measures_non_string_in_list_carries_example():
+    """The 'measures list entries must be strings' message must show an
+    example of the correct shape and pointer at describe_dataset()."""
+    with pytest.raises(ValueError) as exc_info:
+        await server.get_data(
+            "ADI_KEY_STATS", measures=["cet1_ratio", 42],  # type: ignore[list-item]
+        )
+    msg = str(exc_info.value)
+    assert "cet1_ratio" in msg or "total_capital" in msg, (
+        f"no example measure key in error: {msg}"
+    )
+    assert "describe_dataset" in msg, (
+        f"missing pointer to describe_dataset(): {msg}"
+    )

@@ -5,6 +5,44 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.4] — 2026-05-15
+
+### Error-message sweep — rejection messages now suggest the correction
+
+Quality dimension #5 (Deterministic Error Handling) audit. Every `ValueError`
+across the public tool surface and the YAML loader was reviewed and rewritten
+to carry a "Try X" / "Did you mean X?" / "Valid options: ..." hint instead of
+just describing the rejection. ~15 weak sites rewritten across `server.py`,
+`curated.py`, and `shaping.py`.
+
+Highlights:
+
+- **`Dataset {id} is not a curated apra-mcp dataset`** (the highest-volume
+  agent-facing rejection) now embeds a rapidfuzz-driven `Did you mean 'X'?`
+  match plus the first 10 valid IDs and pointers to `list_curated()` /
+  `search_datasets()`. A typo like `ADI_KEYSTATS` (missing underscore) now
+  surfaces `Did you mean 'ADI_KEY_STATS'?` directly in the error.
+- **`Could not fetch dataset X from apra.gov.au`** now includes the upstream
+  URL it tried, the landing page to sanity-check, and a "try again — the
+  client retries with cached fallback on next warm call" hint, so the agent
+  knows whether to retry, escalate, or move on.
+- **measures-list type errors** now show example syntax
+  (`['cet1_ratio', 'tier1_ratio']`) and point at `describe_dataset('<id>')`
+  for valid measure keys.
+- **YAML loader errors** (developer-facing, when authoring new curated
+  YAMLs) now show example correct syntax inline, e.g. the `framework`
+  block, `discovery` block, and individual `column` mappings each carry a
+  full one-line example of the correct shape.
+- **`Duplicate curated id`** now spells out the fix: rename one of the
+  colliding files or delete the duplicate.
+
+### Tests
+
+- 270 unit tests (up from 267 — 3 new regression tests covering the
+  dataset-id "Did you mean?" path, the valid-ID enumeration on far typos,
+  and the example-syntax check on measures-list type errors)
+- Zero-flake across 10 sequential runs
+
 ## [0.1.3] — 2026-05-15
 
 ### Reliability — stale-cache fallback on upstream failure

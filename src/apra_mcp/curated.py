@@ -115,9 +115,17 @@ def _yaml_dir() -> Path:
 
 def _parse_column(key: str, raw: dict) -> CuratedColumn:
     if not isinstance(raw, dict):
-        raise ValueError(f"Column {key!r} must be a mapping, got {type(raw).__name__}")
+        raise ValueError(
+            f"Column {key!r} must be a YAML mapping, got {type(raw).__name__}. "
+            f"Example: '{key}: {{source_column: \"<SourceColumnName>\", "
+            "role: \"measure\", unit: \"AUD millions\"}}'"
+        )
     if "source_column" not in raw:
-        raise ValueError(f"Column {key!r} missing required field 'source_column'")
+        raise ValueError(
+            f"Column {key!r} missing required field 'source_column'. "
+            f"Add it: '{key}: {{source_column: \"<exact header in the XLSX>\", "
+            "role: \"measure\"|\"dimension\"|\"id\"}}'"
+        )
     return CuratedColumn(
         key=key,
         source_column=str(raw["source_column"]),
@@ -144,16 +152,30 @@ def _parse_dimension_values(raw) -> CuratedDimensionValues:
         return CuratedDimensionValues(
             values={str(k): str(v) for k, v in raw.items()}, permissive=False,
         )
-    raise ValueError(f"dimension_values must be a mapping, got {type(raw).__name__}")
+    raise ValueError(
+        f"dimension_values must be a YAML mapping, got {type(raw).__name__}. "
+        "Example: 'dimension_values: {sector: {cba: \"Commonwealth Bank of Australia\", "
+        "nab: \"National Australia Bank\"}}'"
+    )
 
 
 def _parse_framework(raw) -> CuratedFramework | None:
     if raw is None:
         return None
     if not isinstance(raw, dict):
-        raise ValueError(f"framework must be a mapping, got {type(raw).__name__}")
+        raise ValueError(
+            f"framework must be a YAML mapping, got {type(raw).__name__}. "
+            "Example: 'framework: {current_basis: \"post-AASB17\", "
+            "break_date: \"2023-09-30\", historical_dataset: "
+            "\"LIFE_INSURANCE_HISTORICAL\"}'"
+        )
     if "current_basis" not in raw:
-        raise ValueError("framework block missing required field 'current_basis'")
+        raise ValueError(
+            "framework block missing required field 'current_basis'. "
+            "Valid values: 'post-AASB17' or 'pre-AASB17'. "
+            "Example: 'framework: {current_basis: \"post-AASB17\", "
+            "break_date: \"2023-09-30\"}'"
+        )
     return CuratedFramework(
         current_basis=str(raw["current_basis"]),
         break_date=raw.get("break_date"),
@@ -166,11 +188,25 @@ def _parse_discovery(raw) -> CuratedDiscovery | None:
     if raw is None:
         return None
     if not isinstance(raw, dict):
-        raise ValueError(f"discovery must be a mapping, got {type(raw).__name__}")
+        raise ValueError(
+            f"discovery must be a YAML mapping, got {type(raw).__name__}. "
+            "Example: 'discovery: {landing_url: \"https://www.apra.gov.au/...\", "
+            "filename_pattern: \"<regex>\"}'"
+        )
     if "landing_url" not in raw:
-        raise ValueError("discovery block missing required field 'landing_url'")
+        raise ValueError(
+            "discovery block missing required field 'landing_url'. "
+            "Add it: 'discovery: {landing_url: "
+            "\"https://www.apra.gov.au/<page-slug>\", filename_pattern: "
+            "\"<regex>\"}'. This is the APRA landing page the scraper reads."
+        )
     if "filename_pattern" not in raw:
-        raise ValueError("discovery block missing required field 'filename_pattern'")
+        raise ValueError(
+            "discovery block missing required field 'filename_pattern'. "
+            "Add it: 'discovery: {landing_url: ..., filename_pattern: "
+            "\"<regex matching the XLSX filename, e.g. "
+            "'.*Quarterly.*\\\\.xlsx'>\"}'."
+        )
     excludes = raw.get("exclude_patterns") or ()
     if isinstance(excludes, str):
         excludes = (excludes,)
@@ -187,7 +223,13 @@ def _parse_discovery(raw) -> CuratedDiscovery | None:
 def _load_one(path: Path) -> CuratedDataset:
     raw = yaml.safe_load(path.read_text(encoding="utf-8"))
     if not isinstance(raw, dict):
-        raise ValueError(f"{path.name}: top-level must be a mapping")
+        raise ValueError(
+            f"{path.name}: top-level must be a YAML mapping (key:value pairs), "
+            f"got {type(raw).__name__}. Each curated YAML must declare at "
+            "minimum 'id', 'name', 'source_url', 'download_url', 'format', "
+            "'columns'. See data/curated/ADI_KEY_STATS.yaml for a complete "
+            "working example."
+        )
 
     columns: dict[str, CuratedColumn] = {}
     for key, col_raw in (raw.get("columns") or {}).items():
@@ -199,11 +241,21 @@ def _load_one(path: Path) -> CuratedDataset:
 
     fmt = str(raw.get("format", "xlsx")).lower()
     if fmt not in ("xlsx", "csv"):
-        raise ValueError(f"{path.name}: format must be 'xlsx' or 'csv', got {fmt!r}")
+        raise ValueError(
+            f"{path.name}: format must be 'xlsx' or 'csv', got {fmt!r}. "
+            "Valid options: 'xlsx' (every curated apra-mcp dataset in v0.1) "
+            "or 'csv'. Omit the field to default to 'xlsx'."
+        )
 
     layout = str(raw.get("layout", "wide")).lower()
     if layout not in ("wide", "transposed"):
-        raise ValueError(f"{path.name}: layout must be 'wide' or 'transposed', got {layout!r}")
+        raise ValueError(
+            f"{path.name}: layout must be 'wide' or 'transposed', got "
+            f"{layout!r}. Valid options: 'wide' (one row per observation — "
+            "every shipped dataset uses this) or 'transposed' (one column "
+            "per period — reserved for the v0.2 SUPER_AGGREGATE / "
+            "ADI_PROPERTY_EXPOSURES files). Omit to default to 'wide'."
+        )
 
     return CuratedDataset(
         id=str(raw["id"]),
@@ -235,7 +287,12 @@ def _load_all() -> dict[str, CuratedDataset]:
     for path in sorted(_yaml_dir().glob("*.yaml")):
         cd = _load_one(path)
         if cd.id in out:
-            raise ValueError(f"Duplicate curated id {cd.id!r} (from {path.name})")
+            raise ValueError(
+                f"Duplicate curated id {cd.id!r} (from {path.name}). "
+                "Each YAML file under data/curated/ must declare a unique "
+                "top-level 'id' field. Rename one of the colliding files "
+                "and update its 'id', or delete the duplicate."
+            )
         out[cd.id] = cd
     return out
 

@@ -83,22 +83,46 @@ async def reset_client_for_tests() -> None:
         _client = None
 
 
+def _curated_id_hint(user_id: str) -> str:
+    """Build a 'Did you mean ...? Valid IDs: ...' fragment for unknown dataset IDs."""
+    ids = curated.list_ids()
+    if not ids:
+        return " Try list_curated() to see available IDs."
+    try:
+        from rapidfuzz import fuzz, process
+        match = process.extractOne(
+            user_id.upper(), ids, scorer=fuzz.WRatio, score_cutoff=60,
+        )
+        suggestion = f" Did you mean {match[0]!r}?" if match else ""
+    except ImportError:
+        suggestion = ""
+    return (
+        f"{suggestion} Valid IDs: {', '.join(ids[:10])}"
+        + ("..." if len(ids) > 10 else "")
+        + " Try list_curated() to enumerate all, or search_datasets('<topic>')."
+    )
+
+
 def _normalize_dataset_id(dataset_id: Any) -> str:
     if not isinstance(dataset_id, str):
         raise ValueError(
             f"dataset_id must be a string, got {type(dataset_id).__name__}. "
-            "Try search_datasets() or list_curated() to discover IDs."
+            "Try search_datasets('banks') or list_curated() to discover IDs. "
+            "Example: dataset_id='ADI_KEY_STATS'."
         )
     norm = dataset_id.strip().upper()
     if not norm:
         raise ValueError(
-            "dataset_id is empty. Try list_curated() to see available IDs."
+            "dataset_id is empty. Try list_curated() to see available IDs, "
+            "or search_datasets('banks'|'super'|'insurance'). "
+            "Example: dataset_id='ADI_KEY_STATS'."
         )
     if not _DATASET_ID_PATTERN.match(norm):
         raise ValueError(
             f"dataset_id {dataset_id!r} contains invalid characters — "
             "apra-mcp IDs use uppercase letters, digits, and underscores "
-            "(e.g. 'ADI_KEY_STATS', 'LIFE_INSURANCE')."
+            "(e.g. 'ADI_KEY_STATS', 'LIFE_INSURANCE'). "
+            "Try list_curated() to see the full set."
         )
     return norm
 
@@ -155,15 +179,24 @@ def _validate_measures(measures: Any) -> str | list[str] | None:
         for m in measures:
             if not isinstance(m, str):
                 raise ValueError(
-                    f"measures list entries must be strings, got {type(m).__name__}."
+                    f"measures list entries must be strings, got {type(m).__name__} "
+                    f"({m!r}). Pass measure keys like 'cet1_ratio' or 'total_capital'. "
+                    "Try describe_dataset('<id>') to list valid measure keys."
                 )
             s = m.strip()
             if not s:
-                raise ValueError("measures list contains an empty string.")
+                raise ValueError(
+                    "measures list contains an empty string. "
+                    "Pass measure keys like ['cet1_ratio', 'tier1_ratio'], or omit "
+                    "`measures` to return all curated measures. "
+                    "Try describe_dataset('<id>') to list valid measure keys."
+                )
             out.append(s)
         return out
     raise ValueError(
-        f"measures must be a string or list of strings, got {type(measures).__name__}."
+        f"measures must be a string or list of strings, got {type(measures).__name__}. "
+        "Examples: measures='cet1_ratio', or measures=['cet1_ratio', 'tier1_ratio']. "
+        "Try describe_dataset('<id>') to list valid measure keys."
     )
 
 
@@ -195,7 +228,12 @@ async def _fetch_and_parse(
         body = await client.fetch_resource(url, kind="data")
     except APRAAPIError as e:
         raise ValueError(
-            f"Could not fetch dataset {cd.id} from apra.gov.au. ({e})"
+            f"Could not fetch dataset {cd.id!r} from apra.gov.au ({e}). "
+            f"The upstream URL was {url!r}. Try the call again — apra.gov.au is "
+            "intermittent and the client retries with cached fallback on next "
+            "warm call. If the failure persists, check the landing page "
+            f"({cd.source_url}) is reachable, or run list_curated() to confirm "
+            "the dataset id is still supported."
         ) from e
 
     # Content-aware cache key (mirrors ato-mcp's design).
@@ -215,8 +253,11 @@ async def _fetch_and_parse(
 
     if cd.sheet is None:
         raise ValueError(
-            f"Dataset {cd.id!r} declares format='xlsx' but has no sheet name. "
-            "Fix the curated YAML."
+            f"Dataset {cd.id!r} declares format='xlsx' but has no sheet name "
+            "in its curated YAML. Fix data/curated/" + cd.id +
+            ".yaml: add a top-level 'sheet: <sheet-name>' field (e.g. "
+            "'sheet: \"Table 1\"'). The other curated datasets in this "
+            "package all set a sheet — use them as a template."
         )
     df = read_xlsx(
         body,
@@ -298,10 +339,14 @@ async def search_datasets(
         )
     if isinstance(limit, bool) or not isinstance(limit, int):
         raise ValueError(
-            f"limit must be a positive integer, got {limit!r} ({type(limit).__name__})."
+            f"limit must be a positive integer, got {limit!r} "
+            f"({type(limit).__name__}). Try limit=10 (default) or limit=20."
         )
     if limit < 1:
-        raise ValueError(f"limit must be >= 1, got {limit}.")
+        raise ValueError(
+            f"limit must be >= 1, got {limit}. Try limit=10 (default) or omit "
+            "the argument."
+        )
     return catalog.search(query, limit=limit)
 
 
@@ -344,8 +389,8 @@ async def describe_dataset(
     cd = curated.get(norm_id)
     if cd is None:
         raise ValueError(
-            f"Dataset {dataset_id!r} is not a curated apra-mcp dataset. "
-            "Try list_curated() to see available IDs."
+            f"Dataset {dataset_id!r} is not a curated apra-mcp dataset."
+            + _curated_id_hint(norm_id)
         )
     dims_out = [
         ColumnDetail(
@@ -408,8 +453,8 @@ async def _get_data_impl(
     cd = curated.get(norm_id)
     if cd is None:
         raise ValueError(
-            f"Dataset {dataset_id!r} is not a curated apra-mcp dataset. "
-            "Try list_curated() to see available IDs."
+            f"Dataset {dataset_id!r} is not a curated apra-mcp dataset."
+            + _curated_id_hint(norm_id)
         )
     filters_d = _validate_filters(filters)
     measures_v = _validate_measures(measures)
@@ -713,13 +758,18 @@ async def top_n(
         )
     if isinstance(n, bool) or not isinstance(n, int):
         raise ValueError(
-            f"n must be a positive integer, got {n!r} ({type(n).__name__})."
+            f"n must be a positive integer, got {n!r} ({type(n).__name__}). "
+            "Try n=10 (default) for the top-10 leaderboard."
         )
     if n < 1:
-        raise ValueError(f"n must be >= 1, got {n}.")
+        raise ValueError(
+            f"n must be >= 1, got {n}. Try n=10 (default) for the standard "
+            "top-10 leaderboard."
+        )
     if direction not in ("top", "bottom"):
         raise ValueError(
-            f"direction must be 'top' or 'bottom', got {direction!r}."
+            f"direction must be 'top' or 'bottom', got {direction!r}. "
+            "'top' returns largest values (default), 'bottom' returns smallest."
         )
 
     full = await _get_data_impl(
