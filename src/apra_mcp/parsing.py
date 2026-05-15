@@ -11,16 +11,30 @@ APRA ships XLSX in two broad shapes:
    Fund-Level). Each Table N sheet is its own long-format slice, but headers
    land on row 3 with a title in row 1 and sometimes a units row in row 2.
 
-We parse both via `read_xlsx(sheet, header_row)` — the curated YAML pins
+3. **Transposed pivot tables** (Super Performance KeyStats, ADI Property
+   Exposures). Rows are entity categories, column headers are time periods.
+   Call `melt_transposed()` after `read_xlsx()` to normalise to long format.
+
+We parse all three via `read_xlsx(sheet, header_row)` — the curated YAML pins
 the exact row. The header is normalised so embedded newlines + extra
 whitespace don't break exact column-name matching downstream.
 """
 from __future__ import annotations
 
+import calendar
+import re as _re
 import zipfile
+from datetime import datetime
 from io import BytesIO
+from typing import Any
 
 import pandas as pd
+
+_MONTH_ABBR: dict[str, int] = {
+    "Jan": 1, "Feb": 2, "Mar": 3, "Apr": 4, "May": 5, "Jun": 6,
+    "Jul": 7, "Aug": 8, "Sep": 9, "Oct": 10, "Nov": 11, "Dec": 12,
+}
+_MON_YYYY_RE = _re.compile(r"^([A-Za-z]{3})\s+(\d{4})$")
 
 
 class ParseError(Exception):
@@ -100,6 +114,87 @@ def _normalize_header(c):
         return c
     parts = c.replace("\r", " ").replace("\n", " ").split()
     return " ".join(parts)
+
+
+def normalize_transposed_period(v: Any) -> str | None:
+    """Convert a period label from a transposed APRA table to ISO YYYY-MM-DD.
+
+    Handles:
+    - pandas Timestamp / datetime → strftime('%Y-%m-%d')
+    - 'Mar 2025' / 'Dec 2004' style month-year strings → last day of that month
+    - Already-ISO 'YYYY-MM-DD' strings → pass through
+    """
+    if v is None:
+        return None
+    if isinstance(v, (pd.Timestamp, datetime)):
+        try:
+            return v.strftime("%Y-%m-%d")
+        except (ValueError, AttributeError):
+            return None
+    s = str(v).strip()
+    if not s:
+        return None
+    m = _MON_YYYY_RE.match(s)
+    if m:
+        month_name = m.group(1).capitalize()
+        year = int(m.group(2))
+        month_num = _MONTH_ABBR.get(month_name)
+        if month_num:
+            last_day = calendar.monthrange(year, month_num)[1]
+            return f"{year}-{month_num:02d}-{last_day:02d}"
+    if len(s) >= 10 and s[4] == "-" and s[7] == "-":
+        return s[:10]
+    return s
+
+
+def _is_period_column_header(col: Any) -> bool:
+    """Return True if a column name looks like a time-period label.
+
+    Matches pandas Timestamps, datetimes, and 'Mon YYYY' strings.
+    """
+    if isinstance(col, (pd.Timestamp, datetime)):
+        return True
+    if not isinstance(col, str):
+        return False
+    return bool(_MON_YYYY_RE.match(col.strip()))
+
+
+def melt_transposed(df: pd.DataFrame, entity_alias: str) -> pd.DataFrame:
+    """Convert a pivot-table XLSX sheet to long-format DataFrame.
+
+    APRA publishes some datasets in a transposed layout: rows are entity
+    categories (fund types, property types) and column headers are time
+    periods. This function melts them into (entity_alias, 'period', 'value')
+    triples.
+
+    The first column is treated as the entity dimension and renamed to
+    `entity_alias`. All columns whose header passes `_is_period_column_header`
+    are melted into period + value pairs. Other columns are discarded.
+
+    Period headers are normalised to ISO YYYY-MM-DD via
+    `normalize_transposed_period`.
+    """
+    if df.empty:
+        return df
+
+    entity_col = df.columns[0]
+    period_cols = [c for c in df.columns[1:] if _is_period_column_header(c)]
+
+    if not period_cols:
+        return df
+
+    df_work = df.copy()
+    df_work = df_work.rename(columns={entity_col: entity_alias})
+    df_work = df_work.dropna(subset=[entity_alias]).reset_index(drop=True)
+
+    df_long = df_work.melt(
+        id_vars=[entity_alias],
+        value_vars=period_cols,
+        var_name="period",
+        value_name="value",
+    )
+    df_long["period"] = df_long["period"].apply(normalize_transposed_period)
+    return df_long.reset_index(drop=True)
 
 
 def drop_blank_rows(df: pd.DataFrame, key_columns: list[str]) -> pd.DataFrame:

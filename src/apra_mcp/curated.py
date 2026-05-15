@@ -135,6 +135,15 @@ class CuratedDataset:
     # want to treat as the `period`, this names it. The shaping layer will
     # extract the column's value into Observation.period instead of dimensions.
     period_column: str | None = None
+    # Transposed layout: the entity dimension column alias used by melt_transposed.
+    # Set this when layout='transposed'. The first XLSX column is renamed to this
+    # alias; then period columns are melted into ('period', 'value') rows.
+    transposed_entity_alias: str = "entity"
+    # Snapshot layout: True when the XLSX entity column's *header* is the period
+    # date (e.g. Monthly ADI Statistics Table 1). Server renames col 0 to the
+    # entity dimension's source_column and injects a 'period' column from the
+    # original header value.
+    first_col_header_is_period: bool = False
 
 
 _REGISTRY: dict[str, CuratedDataset] | None = None
@@ -319,6 +328,8 @@ def _load_one(path: Path) -> CuratedDataset:
         discovery=_parse_discovery(raw.get("discovery")),
         framework=_parse_framework(raw.get("framework")),
         period_column=raw.get("period_column"),
+        transposed_entity_alias=str(raw.get("transposed_entity_alias", "entity")),
+        first_col_header_is_period=bool(raw.get("first_col_header_is_period", False)),
     )
 
 

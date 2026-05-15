@@ -1,0 +1,75 @@
+id: QUARTERLY_SUPER_PERFORMANCE
+name: Quarterly Superannuation Performance — industry assets by fund type (2004–latest)
+description: |
+  Aggregate total assets (AUD billions) for APRA-regulated superannuation
+  entities by fund type, covering December 2004 to the latest quarter.
+  Each record is one (fund_type, quarter) pair with a single total-assets
+  measure.
+
+  Fund types: Corporate, Industry, Public sector, Retail, Small APRA funds,
+  and the aggregate "Entities with more than six members". Source is the
+  KeyStats sheet of the Quarterly Superannuation Statistics publication.
+
+  For individual fund-level data (member counts, benefits, demographics),
+  use SUPER_FUND_LEVEL instead.
+  Source: APRA Quarterly Superannuation Statistics.
+period_coverage: December 2004 → latest quarter
+update_frequency: quarterly
+source_url: https://www.apra.gov.au/quarterly-superannuation-statistics
+download_url: https://www.apra.gov.au/sites/default/files/2026-02/Quarterly%20superannuation%20performance%20statistics%20-%20December%202004%20to%20December%202025.xlsx
+format: xlsx
+sheet: KeyStats
+header_row: 5
+data_start_row: 7
+layout: transposed
+transposed_entity_alias: fund_type
+period_column: "period"
+cache_kind: data
+search_keywords:
+  - super
+  - superannuation
+  - super assets
+  - fund type
+  - corporate
+  - industry
+  - public sector
+  - retail
+  - quarterly super
+  - aggregate
+  - industry aggregate
+discovery:
+  landing_url: https://www.apra.gov.au/quarterly-superannuation-statistics
+  filename_pattern: '(?i)quarterly\s+superannuation\s+performance\s+statistics'
+  exclude_patterns:
+    - '(?i)mysuper'
+    - '(?i)product'
+    - '(?i)fund.level'
+columns:
+  fund_type:
+    source_column: "fund_type"
+    description: >
+      Fund type category. Common values: Corporate, Industry, Public sector,
+      Retail, Small APRA funds, Entities with more than six members.
+    role: dimension
+    dtype: string
+  period:
+    source_column: "period"
+    description: Quarter end date (ISO YYYY-MM-DD).
+    role: dimension
+    dtype: date
+  total_assets:
+    source_column: "value"
+    description: Total assets for this fund type at quarter end, AUD billions.
+    unit: AUD billions
+    role: measure
+    dtype: float
+dimension_values:
+  fund_type:
+    corporate: Corporate
+    industry: Industry
+    public_sector: Public sector
+    retail: Retail
+    small_apra_funds: Small APRA funds
+    small: Small APRA funds
+    total: Entities with more than six members
+    entities: Entities with more than six members

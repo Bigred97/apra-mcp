@@ -5,6 +5,38 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] - 2026-05-16
+
+### Added
+
+- **3 new curated APRA datasets** — expands from 7 to 10 datasets:
+  - `QUARTERLY_SUPER_PERFORMANCE`: Aggregate total assets (AUD billions) for
+    APRA-regulated superannuation entities by fund type (Corporate, Industry,
+    Public sector, Retail, Small APRA funds), quarterly from December 2004 to
+    latest. Source: Quarterly Superannuation Statistics — KeyStats sheet.
+  - `ADI_PROPERTY_EXPOSURES`: Quarterly commercial property exposure limits and
+    actual exposures by property type (Office, Retail, Industrial, Land
+    development, etc.) for all ADIs, from March 2004 to latest. Includes
+    impaired exposures and specific provisions. Source: Quarterly ADI
+    Property Exposures Statistics — Tab 1a.
+  - `MONTHLY_BANKING_STATS`: Monthly snapshot of seven selected balance-sheet
+    asset categories for every individual ADI (cash, trading securities,
+    investment securities, loans, total assets, securitised assets). Source:
+    Monthly Authorised Deposit-taking Institution Statistics — Table 1.
+
+- **`layout: transposed` parser** — new parsing path in `parsing.py` via
+  `melt_transposed()` for APRA pivot-table sheets where rows are entity
+  categories and column headers are time periods. Periods in 'Mon YYYY'
+  format (e.g. 'Dec 2024') are normalised to ISO YYYY-MM-DD. Used by
+  `QUARTERLY_SUPER_PERFORMANCE` and `ADI_PROPERTY_EXPOSURES`.
+
+- **`first_col_header_is_period` flag** — new YAML option for snapshot
+  publications (like Monthly ADI Statistics) where the entity column's header
+  is the reporting date. Server extracts the period, renames col 0 to the
+  entity's source_column, and injects a synthetic `period` column so the
+  standard shaping pipeline works without modification. Used by
+  `MONTHLY_BANKING_STATS`.
+
 ## [0.4.1] - 2026-05-15
 
 ### Fixed

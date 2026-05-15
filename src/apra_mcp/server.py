@@ -36,7 +36,12 @@ from .models import (
     FrameworkInfo,
     Observation,
 )
-from .parsing import drop_blank_rows, read_xlsx
+from .parsing import (
+    drop_blank_rows,
+    melt_transposed,
+    normalize_transposed_period,
+    read_xlsx,
+)
 from .shaping import build_response
 
 # Curated IDs are uppercase letters + digits + underscore.
@@ -301,6 +306,29 @@ async def _fetch_and_parse(
         header_row=cd.header_row,
         data_start_row=cd.data_start_row,
     )
+
+    # Post-read reshape for non-standard layouts.
+    if cd.layout == "transposed":
+        df = melt_transposed(df, entity_alias=cd.transposed_entity_alias)
+    elif cd.first_col_header_is_period and len(df.columns) > 0:
+        # The entity column's header is the period date (e.g. Monthly ADI Table 1).
+        # Extract the period, rename col 0 to the entity's source_column, and
+        # inject a synthetic period column so the standard shaping pipeline works.
+        period_val = normalize_transposed_period(df.columns[0])
+        period_src = cd.period_column or "period"
+        entity_src = next(
+            (
+                c.source_column
+                for c in cd.columns.values()
+                if c.role in ("dimension", "id") and c.source_column != period_src
+            ),
+            None,
+        )
+        if entity_src:
+            df = df.rename(columns={df.columns[0]: entity_src})
+        if period_src not in df.columns:
+            df[period_src] = period_val
+
     # Trim trailing blank rows where every dimension is NaN.
     dim_source_cols = [c.source_column for c in cd.columns.values() if c.role == "dimension"]
     if dim_source_cols:

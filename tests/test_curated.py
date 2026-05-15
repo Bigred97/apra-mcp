@@ -39,7 +39,7 @@ def test_every_curated_dataset_has_required_fields():
         assert cd.format == "xlsx", f"format must be xlsx for v0.1, got {cd.format} on {cd.id}"
         assert cd.sheet, f"xlsx dataset {cd.id} missing sheet name"
         assert cd.header_row >= 1, f"bad header_row on {cd.id}"
-        assert cd.layout == "wide", f"v0.1 only ships wide-layout datasets, got {cd.layout} on {cd.id}"
+        assert cd.layout in ("wide", "transposed"), f"unknown layout {cd.layout!r} on {cd.id}"
         roles = {c.role for c in cd.columns.values()}
         assert "measure" in roles, f"dataset {cd.id} declares no measure columns"
         assert "dimension" in roles, f"dataset {cd.id} declares no dimension columns"

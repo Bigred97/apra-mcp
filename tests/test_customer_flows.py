@@ -160,6 +160,8 @@ async def test_flow_list_curated_is_complete():
         "ADI_KEY_STATS", "ADI_RISK_WEIGHTED_ASSETS", "SUPER_FUND_LEVEL",
         "INSURANCE_GENERAL", "INSURANCE_GENERAL_HISTORICAL",
         "LIFE_INSURANCE", "LIFE_INSURANCE_HISTORICAL",
+        "QUARTERLY_SUPER_PERFORMANCE", "ADI_PROPERTY_EXPOSURES",
+        "MONTHLY_BANKING_STATS",
     }
     assert set(ids) == expected
 

@@ -1,0 +1,85 @@
+id: ADI_PROPERTY_EXPOSURES
+name: ADI Commercial Property Exposures Statistics (semi-annual, all ADIs)
+description: |
+  Quarterly data on Australian ADIs' commercial property exposure limits and
+  actual exposures by property type. Covers March 2004 to the latest quarter
+  (historical data was semi-annual; current publications are quarterly).
+
+  Includes exposure limits, actual exposures, impaired exposures and specific
+  provisions for: Office, Retail, Industrial, Land development/subdivisions,
+  Other residential, Tourism and leisure, and Other. Also includes aggregate
+  totals and ratios (impaired/total, provisions/total).
+
+  All ADIs consolidated group (excludes 'other ADIs'). Amounts in AUD millions.
+  Source: APRA Quarterly ADI Statistics — "Quarterly authorised deposit-taking
+  institution property exposures statistics" — Tab 1a sheet.
+period_coverage: March 2004 → latest quarter
+update_frequency: quarterly
+source_url: https://www.apra.gov.au/quarterly-authorised-deposit-taking-institution-statistics
+download_url: https://www.apra.gov.au/sites/default/files/2026-03/Quarterly%20authorised%20deposit-taking%20institution%20property%20exposures%20statistics%20December%202025.xlsx
+format: xlsx
+sheet: Tab 1a
+header_row: 7
+layout: transposed
+transposed_entity_alias: property_type
+period_column: "period"
+cache_kind: data
+search_keywords:
+  - property
+  - commercial property
+  - property exposure
+  - office
+  - retail property
+  - industrial
+  - land development
+  - adi property
+  - bank property
+  - impaired
+  - specific provisions
+  - property loans
+discovery:
+  landing_url: https://www.apra.gov.au/quarterly-authorised-deposit-taking-institution-statistics
+  filename_pattern: '(?i)property\s+exposures\s+statistics'
+  exclude_patterns:
+    - '(?i)historical'
+columns:
+  property_type:
+    source_column: "property_type"
+    description: >
+      Property type, section header, or metric name. Common values include:
+      'Office ', 'Retail ', 'Industrial ', 'Land development/subdivisions ',
+      'Other residential ', 'Tourism and leisure ', 'Other ',
+      'Total commercial property limits', 'Total commercial property exposures ',
+      'Impaired Commercial property exposures'.
+      Use describe_dataset to see all values.
+    role: dimension
+    dtype: string
+    permissive: true
+  period:
+    source_column: "period"
+    description: Quarter end date (ISO YYYY-MM-DD). Historical data (pre-2020) was semi-annual (March and September); current publications are quarterly.
+    role: dimension
+    dtype: date
+  value_aud_million:
+    source_column: "value"
+    description: >
+      Value in AUD millions (for exposure amounts and specific provisions) or
+      a decimal ratio (for impaired-to-exposure and provision-related ratios).
+    unit: AUD millions
+    role: measure
+    dtype: float
+dimension_values:
+  property_type:
+    permissive: true
+    values:
+      office: "Office "
+      retail: "Retail "
+      industrial: "Industrial "
+      land_development: "Land development/subdivisions "
+      other_residential: "Other residential "
+      tourism: "Tourism and leisure "
+      other: "Other "
+      total_limits: "Total commercial property limits"
+      total_actual: "Total commercial property exposures "
+      impaired: "Impaired Commercial property exposures"
+      specific_provisions: "Specific provisions"

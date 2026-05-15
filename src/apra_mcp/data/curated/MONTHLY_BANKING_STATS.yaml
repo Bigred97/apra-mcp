@@ -1,0 +1,119 @@
+id: MONTHLY_BANKING_STATS
+name: Monthly ADI Statistics — selected balance-sheet assets by institution
+description: |
+  Monthly snapshot of selected on-balance-sheet assets for every individual
+  Authorised Deposit-taking Institution (ADI) on Australian books. Each record
+  is one (institution, month) pair across seven asset categories.
+
+  Asset categories (AUD millions): cash and deposits, trading securities,
+  investment securities, net acceptances of customers, total residents loans
+  and finance leases, total residents assets, and total securitised assets
+  on balance sheet.
+
+  This is a POINT-IN-TIME snapshot — the current-quarter file always shows
+  only the most recent reporting month. For historical monthly series use
+  APRA's back-series publication (covered by the same discovery landing page).
+  Published approximately 6 weeks after month end.
+  Source: APRA Monthly Authorised Deposit-taking Institution Statistics — Table 1.
+period_coverage: latest month snapshot
+update_frequency: monthly
+source_url: https://www.apra.gov.au/monthly-authorised-deposit-taking-institution-statistics
+download_url: https://www.apra.gov.au/sites/default/files/2026-04/Monthly%20authorised%20deposit-taking%20institution%20statistics%20March%202026.xlsx
+format: xlsx
+sheet: Table 1
+header_row: 3
+layout: wide
+first_col_header_is_period: true
+period_column: "period"
+cache_kind: data
+search_keywords:
+  - monthly banking statistics
+  - madis
+  - monthly adi
+  - bank assets
+  - monthly
+  - bank balance sheet
+  - total assets
+  - loans
+  - trading securities
+  - investment securities
+  - securitised assets
+  - adi balance sheet
+discovery:
+  landing_url: https://www.apra.gov.au/monthly-authorised-deposit-taking-institution-statistics
+  filename_pattern: '(?i)monthly\s+authorised\s+deposit.taking\s+institution\s+statistics'
+  exclude_patterns:
+    - '(?i)back.?series'
+    - '(?i)back-series'
+columns:
+  institution:
+    source_column: "institution"
+    description: ADI legal name (e.g. "Commonwealth Bank of Australia", "Westpac Banking Corporation").
+    role: dimension
+    dtype: string
+    permissive: true
+  period:
+    source_column: "period"
+    description: Month-end reporting date (ISO YYYY-MM-DD).
+    role: dimension
+    dtype: date
+  cash_and_deposits:
+    source_column: "Cash and deposits with financial institutions"
+    description: Cash and deposits with financial institutions, AUD millions.
+    unit: AUD millions
+    role: measure
+    dtype: float
+  trading_securities:
+    source_column: "Trading securities"
+    description: Trading securities, AUD millions.
+    unit: AUD millions
+    role: measure
+    dtype: float
+  investment_securities:
+    source_column: "Investment securities"
+    description: Investment securities, AUD millions.
+    unit: AUD millions
+    role: measure
+    dtype: float
+  net_acceptances:
+    source_column: "Net acceptances of customers"
+    description: Net acceptances of customers, AUD millions.
+    unit: AUD millions
+    role: measure
+    dtype: float
+  total_loans:
+    source_column: "Total residents loans and finance leases"
+    description: Total residents' loans and finance leases, AUD millions.
+    unit: AUD millions
+    role: measure
+    dtype: float
+  total_assets:
+    source_column: "Total residents assets"
+    description: Total residents' assets (on Australian books), AUD millions.
+    unit: AUD millions
+    role: measure
+    dtype: float
+  securitised_assets:
+    source_column: "Total securitised assets on balance sheet"
+    description: Total securitised assets on balance sheet, AUD millions.
+    unit: AUD millions
+    role: measure
+    dtype: float
+dimension_values:
+  institution:
+    permissive: true
+    values:
+      cba: Commonwealth Bank of Australia
+      commbank: Commonwealth Bank of Australia
+      commonwealth_bank: Commonwealth Bank of Australia
+      westpac: Westpac Banking Corporation
+      nab: National Australia Bank Limited
+      national_australia_bank: National Australia Bank Limited
+      anz: Australia and New Zealand Banking Group Limited
+      macquarie: Macquarie Bank Limited
+      ing: ING Bank (Australia) Limited
+      bank_of_queensland: Bank of Queensland Limited
+      boq: Bank of Queensland Limited
+      bendigo: Bendigo and Adelaide Bank Limited
+      suncorp: Suncorp-Metway Limited
+      amp: AMP Bank Limited
