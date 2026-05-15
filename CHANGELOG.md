@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.1] - 2026-05-15
+
+### Fixed
+
+- APRA `*_HISTORICAL` dataset discovery: updated XLSX URL regex to match
+  APRA's restructured site paths. `INSURANCE_GENERAL_HISTORICAL` and
+  `LIFE_INSURANCE_HISTORICAL` now resolve to live data instead of falling
+  back to bundled seed.
+
 ## [0.4.0] - 2026-05-15
 
 ### Added

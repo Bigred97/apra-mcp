@@ -230,6 +230,62 @@ async def test_scrape_handles_non_utf8_gracefully(fresh_cache: Cache):
     assert "Foo.xlsx" in url
 
 
+def test_historical_xlsx_regex_matches_current_apra_filenames():
+    """Regression for the *_HISTORICAL discovery regex.
+
+    APRA's filenames put 'database' BEFORE '(historical data)', so the old
+    `historical.*database` ordering never matched. The updated lookahead
+    pattern in INSURANCE_GENERAL_HISTORICAL.yaml + LIFE_INSURANCE_HISTORICAL.yaml
+    must match the real-world filenames and skip near-misses (specifications,
+    institution-level, the non-historical current-period file).
+    """
+    import re
+
+    from apra_mcp.curated import get as get_curated
+
+    gi = get_curated("INSURANCE_GENERAL_HISTORICAL")
+    li = get_curated("LIFE_INSURANCE_HISTORICAL")
+    assert gi is not None and gi.discovery is not None
+    assert li is not None and li.discovery is not None
+    gi_re = re.compile(gi.discovery.filename_pattern, re.IGNORECASE)
+    li_re = re.compile(li.discovery.filename_pattern, re.IGNORECASE)
+
+    # Real APRA filenames observed on the live landing pages (2026-05).
+    gi_should_match = (
+        "Quarterly general insurance performance statistics database "
+        "(historical data) December 2002 to June 2023.xlsx"
+    )
+    li_should_match = (
+        "Quarterly Life Insurance Performance Statistics Database "
+        "(historical data) June 2008 to June 2023.xlsx"
+    )
+    assert gi_re.search(gi_should_match), f"GI regex failed to match {gi_should_match!r}"
+    assert li_re.search(li_should_match), f"LI regex failed to match {li_should_match!r}"
+
+    # Near-misses on the same landing pages that must NOT match.
+    gi_should_skip = [
+        # current (non-historical) period file
+        "Quarterly general insurance performance statistics database "
+        "September 2023 to December 2025.xlsx",
+        # specs document
+        "20250529 Quarterly general insurance performance statistics - specifications.xlsx",
+        # institution-level historical — different dataset
+        "Quarterly general insurance institution-level statistics database "
+        "(historical data) from September 2017 to June 2023.xlsx",
+    ]
+    li_should_skip = [
+        "Quarterly life insurance performance statistics database "
+        "September 2023 to December 2025 (2).xlsx",
+        "Quarterly life insurance performance statistics - specifications.xlsx",
+        # Same-name file but no 'Database' token — the smaller summary XLSX
+        "Quarterly Life Insurance Performance Statistics (historical data) June 2023.xlsx",
+    ]
+    for f in gi_should_skip:
+        assert not gi_re.search(f), f"GI regex unexpectedly matched {f!r}"
+    for f in li_should_skip:
+        assert not li_re.search(f), f"LI regex unexpectedly matched {f!r}"
+
+
 @pytest.mark.asyncio
 @respx.mock
 async def test_resolve_url_pins_apra_host(fresh_cache: Cache):

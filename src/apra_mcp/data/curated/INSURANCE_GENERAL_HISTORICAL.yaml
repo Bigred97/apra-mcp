@@ -34,7 +34,9 @@ search_keywords:
   - gi history
 discovery:
   landing_url: https://www.apra.gov.au/quarterly-general-insurance-performance-statistics
-  filename_pattern: '(?i)general\s+insurance.*historical.*database'
+  # Match in any order — APRA filenames put "database" before "(historical data)".
+  # Require "performance" too, to distinguish from the institution-level historical XLSX.
+  filename_pattern: '(?i)^(?=.*general\s+insurance)(?=.*performance)(?=.*database)(?=.*historical)'
   prefer_database: true
 columns:
   period:

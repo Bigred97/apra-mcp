@@ -33,7 +33,8 @@ search_keywords:
   - 15 year
 discovery:
   landing_url: https://www.apra.gov.au/quarterly-life-insurance-performance-statistics
-  filename_pattern: '(?i)life\s+insurance.*historical.*database'
+  # Match in any order — APRA filenames put "Database" before "(historical data)".
+  filename_pattern: '(?i)^(?=.*life\s+insurance)(?=.*database)(?=.*historical)'
   prefer_database: true
 columns:
   period:
