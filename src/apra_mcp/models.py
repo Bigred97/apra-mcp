@@ -131,6 +131,7 @@ class DataResponse(BaseModel):
 def _get_server_version() -> str:
     try:
         from importlib.metadata import version
-        return version("apra-mcp")
+        v = version("apra-mcp")
+        return v or "0.0.0+unknown"
     except Exception:
         return "0.0.0+unknown"

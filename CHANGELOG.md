@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.1] - 2026-05-16
+
+### Fixed
+
+- `test_live_list_curated_count` updated to expect 10 datasets (was 7).
+- `_get_server_version()` now guards against `None` return from
+  `importlib.metadata.version()` (can occur with stale dist-info files in
+  editable installs); falls back to `"0.0.0+unknown"` rather than returning
+  `None`. Mirrors the defensive pattern used across the sister stack.
+- CLAUDE.md curated dataset list updated to all 10 APRA datasets.
+
 ## [0.5.0] - 2026-05-16
 
 ### Added
