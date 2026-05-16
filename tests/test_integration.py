@@ -205,3 +205,144 @@ async def test_live_response_has_server_version():
     r = await server.latest("ADI_KEY_STATS", filters={"institution": "cba"})
     assert r.server_version
     assert r.server_version != "0.0.0+unknown"
+
+
+@pytest.mark.live
+@pytest.mark.asyncio
+async def test_live_mysuper_products_range_check():
+    """MYSUPER_PRODUCTS: transposed-then-wide; ~80 products × 11 years.
+
+    Sanity range checks on documented measures in AUD '000s. A real MySuper
+    product should have non-trivial total assets (>$10M = 10,000 in '000s)
+    and the largest products are tens of billions.
+    """
+    r = await server.get_data(
+        "MYSUPER_PRODUCTS", start_period="2023", end_period="2024",
+    )
+    assert r.row_count > 0, "Should return at least one row"
+    assert r.stale is False, f"expected live scrape, got stale: {r.stale_reason}"
+
+    # Schema check on first record: per-product wide layout exposes
+    # product/fund identifiers as dimensions and financial measures separately.
+    sample = r.records[0]
+    assert sample.period is not None
+    # June year-end snapshot — every period in 2023-2024 window should end with -06-30
+    for rec in r.records:
+        assert rec.period and rec.period.endswith("-06-30"), (
+            f"MySuper is annual June-end; got period={rec.period!r}"
+        )
+    # Dimensions should include product + fund identifiers
+    sample_dims = sample.dimensions
+    expected_dim_keys = {"product_name", "fund_name", "fund_abn", "fund_type"}
+    assert expected_dim_keys.issubset(sample_dims.keys()), (
+        f"missing identifier dims; got {sorted(sample_dims.keys())}"
+    )
+
+    # Sanity range on total_assets_000: AUD '000s, real products are
+    # 10k (=$10M) to ~250M (=$250B for the biggest balanced default).
+    assets = [rec.value for rec in r.records if rec.measure == "total_assets_000"]
+    assert len(assets) >= 1, "should report total_assets_000 for at least one product"
+    assert min(assets) > 10_000, (
+        f"smallest MySuper product total_assets_000 unrealistically low: {min(assets)}"
+    )
+    assert max(assets) < 500_000_000, (
+        f"largest MySuper product total_assets_000 unrealistically high: {max(assets)}"
+    )
+
+    # Unit on every record should be AUD thousands
+    for rec in r.records:
+        if rec.measure == "total_assets_000":
+            assert rec.unit == "AUD thousands"
+
+
+@pytest.mark.live
+@pytest.mark.asyncio
+async def test_live_insurance_health_range_check():
+    """INSURANCE_HEALTH: AASB 17 break flag is surfaced; HIB premium revenue sane."""
+    r = await server.get_data(
+        "INSURANCE_HEALTH",
+        filters={"data_item": "HIB premium revenue"},
+        start_period="2023",
+        end_period="2024",
+    )
+    assert r.row_count > 0, "Should return at least one row"
+    assert r.stale is False, f"expected live scrape, got stale: {r.stale_reason}"
+
+    # AASB 17 framework flag must be surfaced on every INSURANCE_HEALTH response.
+    assert r.framework is not None, "INSURANCE_HEALTH must expose AASB-17 framework"
+    assert r.framework.basis == "post-AASB17"
+    assert r.framework.break_date == "2023-09-30"
+
+    # Schema check: long-format with data_item / subject / category dimensions
+    # and a single "value" measure carrying the actual observation.
+    for rec in r.records:
+        assert rec.measure == "value"
+        assert rec.unit == "AUD"
+        assert rec.dimensions.get("data_item") == "HIB premium revenue"
+        assert rec.dimensions.get("subject") == "Financial performance (supplementary)"
+
+    # HIB premium revenue is the industry's total quarterly private health
+    # insurance premium take. Currently ~$7B/quarter — assert in [$3B, $15B]
+    # to give plenty of headroom for future quarters while still catching
+    # unit-error parsing bugs (e.g. accidental ÷1000 or ×1000).
+    values = [rec.value for rec in r.records]
+    assert all(v > 3_000_000_000 for v in values), (
+        f"HIB premium revenue suspiciously low: {min(values)}"
+    )
+    assert all(v < 15_000_000_000 for v in values), (
+        f"HIB premium revenue suspiciously high: {max(values)}"
+    )
+
+
+@pytest.mark.live
+@pytest.mark.asyncio
+async def test_live_adi_performance_range_check():
+    """ADI_PERFORMANCE: transposed with footnote markers on metric names.
+
+    APRA's source XLSX uses footnote markers (trailing 'a') on some metric
+    names; ADI_PERFORMANCE.yaml exposes stable plain-English aliases. Test
+    both: (1) aliases route to the footnote-bearing source value, (2) the
+    returned $ ranges are sensible for the ADI industry aggregate.
+    """
+    # Use the YAML's alias — exercises the footnote-marker indirection.
+    r = await server.get_data(
+        "ADI_PERFORMANCE",
+        filters={"metric": "net_profit_after_tax"},
+        start_period="2024-Q1",
+        end_period="2024-Q4",
+    )
+    assert r.row_count >= 1, "Should return at least one quarter of NPAT"
+    assert r.stale is False, f"expected live scrape, got stale: {r.stale_reason}"
+
+    # The alias must resolve to the footnote-bearing source value.
+    npat_metrics = {rec.dimensions.get("metric") for rec in r.records}
+    assert "Net profit (loss) after taxa" in npat_metrics, (
+        f"footnote-marker alias not preserved; got metrics: {npat_metrics}"
+    )
+
+    # NPAT is reported in AUD millions, consolidated group basis. Industry
+    # aggregate quarterly NPAT runs ~$7B-$13B/quarter for the ADI sector —
+    # assert in [$1B, $30B] to bracket real history without false flags.
+    for rec in r.records:
+        assert rec.unit == "AUD millions"
+        assert rec.value is not None
+        # Values are in millions, so $1B = 1000, $30B = 30000
+        assert 1_000 < rec.value < 30_000, (
+            f"ADI quarterly NPAT looks unrealistic: {rec.value} AUD millions "
+            f"at period {rec.period}"
+        )
+
+    # Net interest income is much larger than NPAT — verify the NII alias
+    # routes correctly and the value is materially bigger than NPAT.
+    r_nii = await server.get_data(
+        "ADI_PERFORMANCE",
+        filters={"metric": "nii"},
+        start_period="2024-Q1",
+        end_period="2024-Q4",
+    )
+    assert r_nii.row_count >= 1
+    nii_values = [rec.value for rec in r_nii.records]
+    # NII quarterly aggregate is currently ~$24B; assert in [$10B, $50B]
+    assert all(10_000 < v < 50_000 for v in nii_values), (
+        f"ADI quarterly NII looks unrealistic: {nii_values}"
+    )

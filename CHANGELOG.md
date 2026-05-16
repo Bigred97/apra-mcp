@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.1] - 2026-05-16
+
+### Added
+
+- `@pytest.mark.live` integration tests for `MYSUPER_PRODUCTS`,
+  `INSURANCE_HEALTH`, and `ADI_PERFORMANCE` with range-check assertions
+  on documented measures. Brings these datasets up to the `ADI_KEY_STATS`
+  test-discipline standard.
+
 ## [0.8.0] - 2026-05-16
 
 ### Added — MYSUPER_PRODUCTS (per-product default super performance, 11-year history)
