@@ -31,13 +31,16 @@ def patch_fetch(
         "ADI_KEY_STATS": adi_key_stats_xlsx,
     }
 
-    async def fake_fetch(cd):
+    async def fake_fetch(cd, *, start_period=None, end_period=None):
         body = fixtures.get(cd.id)
         if body is None:
             raise RuntimeError(f"No fixture for {cd.id}")
         df = read_xlsx(
             body, sheet=cd.sheet,
             header_row=cd.header_row, data_start_row=cd.data_start_row,
+            period_source_column=cd.period_column if cd.layout == "wide" else None,
+            start_period=start_period,
+            end_period=end_period,
         )
         dim_source_cols = [c.source_column for c in cd.columns.values() if c.role == "dimension"]
         if dim_source_cols:

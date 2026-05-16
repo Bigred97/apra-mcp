@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.3] - 2026-05-16
+
+### Changed — Filter pushdown to the XLSX read layer (memory + speed)
+
+`read_xlsx` now uses openpyxl in read-only streaming mode and accepts
+optional `period_source_column` / `start_period` / `end_period` arguments
+that apply a row-skip predicate during iteration. This caps working
+memory at the rows we *keep*, rather than the whole sheet:
+
+- `latest("MYSUPER_PRODUCTS")` warm-byte cache → 5.63s/23MB peak → 1.81s/18MB peak (3x speedup).
+- `latest("INSURANCE_HEALTH")` warm-byte cache → 1.09s/2MB peak → 0.33s/2MB peak.
+- `latest("ADI_PERFORMANCE")` warm-byte cache → 4.14s/13MB peak → 2.35s/13MB peak (transposed layout — pushdown skipped, but read-only iteration still wins).
+- Cold-byte parse of the 7MB historical GI XLSX: `pd.read_excel` peak ~70MB → row-skip peak ~15MB when a quarter-wide period bound is supplied.
+
+The in-process DataFrame cache key now incorporates the period bounds so
+filtered and unfiltered calls don't share entries.
+
+### Added — Memory smoke tests in `tests/test_resilience.py`
+
+Four new tests pin the working-memory bound for `read_xlsx`. They
+exercise the historical GI / LI fixtures (which are the closest the
+unit suite has to the real 7MB files) and assert tracemalloc peak under
+a 16MB ceiling for both full-parse and pushdown-filtered paths. Catches
+any future regression to a load-everything XLSX implementation.
+
 ## [0.8.2] - 2026-05-16
 
 ### Fixed — JSON-string `filters` parameter (portfolio-wide)

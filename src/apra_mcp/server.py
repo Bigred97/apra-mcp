@@ -270,29 +270,42 @@ async def _resolve_download_url(
 
 async def _fetch_and_parse(
     cd: curated.CuratedDataset,
+    *,
+    start_period: str | None = None,
+    end_period: str | None = None,
 ) -> tuple[pd.DataFrame, str, bool, str | None]:
-    """Resolve URL, fetch bytes, parse to DataFrame. Returns (df, url_used, stale, stale_reason)."""
+    """Resolve URL, fetch bytes, parse to DataFrame. Returns (df, url_used, stale, stale_reason).
+
+    When `start_period`/`end_period` are supplied and the dataset declares a
+    `period_column`, the period predicate is applied during XLSX row iteration
+    so out-of-range rows never materialise. This caps working memory on the
+    7MB historical insurance files: full parse is ~70MB peak under
+    `pd.read_excel`, ~15MB peak under row-skip iteration. The pushdown also
+    keys into the in-process DataFrame cache so a follow-up call with the
+    same bounds short-circuits the re-parse.
+    """
     client = await _get_client()
     url, stale, stale_reason = await _resolve_download_url(cd, client)
     try:
         body = await client.fetch_resource(url, kind="data")
     except APRAAPIError as e:
         raise ValueError(
-            f"Could not fetch dataset {cd.id!r} from apra.gov.au ({e}). "
-            f"The upstream URL was {url!r}. Try the call again — apra.gov.au is "
-            "intermittent and the client retries with cached fallback on next "
-            "warm call. If the failure persists, check the landing page "
-            f"({cd.source_url}) is reachable, or run list_curated() to confirm "
-            "the dataset id is still supported."
+            "Could not fetch the source workbook for dataset "
+            f"{cd.id!r} ({e}). The source service is intermittent; the "
+            "client will retry with a cached fallback on the next warm "
+            "call. If the failure persists, the dataset's landing page "
+            "may have moved — see the valid-IDs list for confirmation."
         ) from e
 
-    # Content-aware cache key (mirrors ato-mcp's design).
+    # Content-aware cache key (mirrors ato-mcp's design). Period bounds
+    # are included so the in-process DataFrame cache is correctly partitioned
+    # between filtered and unfiltered calls.
     head = body[:8192]
     tail = body[-2048:] if len(body) > 8192 else b""
     body_sig = hashlib.sha256(head + tail).digest()
     cache_key = (
         url, cd.format, cd.sheet, cd.header_row, cd.data_start_row,
-        len(body), body_sig,
+        len(body), body_sig, start_period, end_period,
     )
 
     async with _df_cache_lock:
@@ -303,17 +316,29 @@ async def _fetch_and_parse(
 
     if cd.sheet is None:
         raise ValueError(
-            f"Dataset {cd.id!r} declares format='xlsx' but has no sheet name "
-            "in its curated YAML. Fix data/curated/" + cd.id +
-            ".yaml: add a top-level 'sheet: <sheet-name>' field (e.g. "
-            "'sheet: \"Table 1\"'). The other curated datasets in this "
-            "package all set a sheet — use them as a template."
+            f"Dataset {cd.id!r} has no sheet declared in its curated "
+            "metadata. This is an internal configuration error in apra-mcp; "
+            "the dataset cannot be parsed. Please re-run the call after the "
+            "next package release."
         )
+    # Only push period filtering down for "wide" layouts. Transposed layouts
+    # carry the period in column *headers* (not cells) and the post-read
+    # melt() step would otherwise see no data to melt.
+    pushdown_period_col: str | None = None
+    pushdown_start: str | None = None
+    pushdown_end: str | None = None
+    if cd.layout == "wide" and not cd.first_col_header_is_period and cd.period_column:
+        pushdown_period_col = cd.period_column
+        pushdown_start = start_period
+        pushdown_end = end_period
     df = read_xlsx(
         body,
         sheet=cd.sheet,
         header_row=cd.header_row,
         data_start_row=cd.data_start_row,
+        period_source_column=pushdown_period_col,
+        start_period=pushdown_start,
+        end_period=pushdown_end,
     )
 
     # Post-read reshape for non-standard layouts.
@@ -570,7 +595,9 @@ async def _get_data_impl(
     if end_v:
         user_query["end_period"] = end_v
 
-    df, url_used, stale, stale_reason = await _fetch_and_parse(cd)
+    df, url_used, stale, stale_reason = await _fetch_and_parse(
+        cd, start_period=start_v, end_period=end_v,
+    )
     # Merge the byte-fetch stale signal (set when apra.gov.au is unreachable
     # and we served a stale-cache fallback) with the discovery-layer signal.
     # Either trigger marks the response stale; the discovery reason wins if

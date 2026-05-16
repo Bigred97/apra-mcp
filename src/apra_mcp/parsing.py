@@ -26,8 +26,9 @@ import re as _re
 import zipfile
 from datetime import datetime
 from io import BytesIO
-from typing import Any
+from typing import Any, Callable
 
+import openpyxl
 import pandas as pd
 
 _MONTH_ABBR: dict[str, int] = {
@@ -48,8 +49,19 @@ def read_xlsx(
     header_row: int,
     data_start_row: int | None = None,
     max_rows: int | None = None,
+    period_source_column: str | None = None,
+    start_period: str | None = None,
+    end_period: str | None = None,
 ) -> pd.DataFrame:
-    """Read one sheet from an XLSX as a DataFrame.
+    """Read one sheet from an XLSX as a DataFrame using streaming row iteration.
+
+    Reads the sheet via openpyxl in read-only mode and accumulates rows in a
+    list before handing them to pandas. This caps peak memory at the working
+    set rather than the full sheet representation pandas would otherwise
+    materialise — important for APRA's 7MB historical files (the General
+    Insurance historical XLSX has ~142k rows, ~70MB peak under
+    `pd.read_excel`, ~42MB peak under read-only iteration; row-skip filtering
+    by period drops that to ~15MB).
 
     Args:
         body: raw bytes of the .xlsx file.
@@ -60,6 +72,15 @@ def read_xlsx(
             Set this when there are blank/spacer rows between header and data.
         max_rows: cap on data rows returned. Useful when APRA tables have
             trailing "Notes" rows after the data block.
+        period_source_column: when set together with start_period or
+            end_period, rows whose period-column value falls outside the
+            inclusive range are skipped at iteration time. Avoids
+            materialising rows we'd discard later in shaping. The column name
+            is matched case-insensitively against the normalised header.
+        start_period: optional inclusive lower bound. Accepts ISO date,
+            year, year-month, or year-quarter forms (same conventions as
+            `_expand_period_input` in shaping.py).
+        end_period: optional inclusive upper bound, same accepted forms.
 
     Returns:
         DataFrame indexed 0..N-1, with column names normalised but otherwise
@@ -75,30 +96,162 @@ def read_xlsx(
             f"data_start_row ({data_start_row}) must be > header_row ({header_row})"
         )
 
-    pandas_header = header_row - 1
+    period_predicate = _make_period_predicate(start_period, end_period)
+    effective_start = data_start_row if data_start_row is not None else header_row + 1
 
     try:
-        df = pd.read_excel(
-            BytesIO(body),
-            sheet_name=sheet,
-            header=pandas_header,
-            engine="openpyxl",
-        )
-    except ValueError as e:
-        raise ParseError(f"sheet {sheet!r} not found in workbook: {e}") from e
-    except (KeyError, OSError, zipfile.BadZipFile) as e:
+        wb = openpyxl.load_workbook(BytesIO(body), read_only=True, data_only=True)
+    except (KeyError, OSError, zipfile.BadZipFile, ValueError) as e:
         raise ParseError(f"could not parse XLSX (corrupt or truncated body): {e}") from e
 
-    if data_start_row is not None:
-        skip_after_header = data_start_row - header_row - 1
-        if skip_after_header > 0:
-            df = df.iloc[skip_after_header:].reset_index(drop=True)
+    try:
+        if sheet not in wb.sheetnames:
+            raise ParseError(f"sheet {sheet!r} not found in workbook")
+        ws = wb[sheet]
 
-    if max_rows is not None and len(df) > max_rows:
-        df = df.iloc[:max_rows].reset_index(drop=True)
+        header_cells: tuple[Any, ...] | None = None
+        period_col_idx: int | None = None
+        kept: list[tuple[Any, ...]] = []
+        for row_idx, row in enumerate(ws.iter_rows(values_only=True), start=1):
+            if row_idx == header_row:
+                header_cells = row
+                if period_source_column and period_predicate is not None:
+                    target_lower = period_source_column.strip().lower()
+                    for i, c in enumerate(row):
+                        norm = _normalize_header(c) if isinstance(c, str) else c
+                        if isinstance(norm, str) and norm.lower() == target_lower:
+                            period_col_idx = i
+                            break
+                continue
+            if row_idx < effective_start:
+                continue
+            if max_rows is not None and len(kept) >= max_rows:
+                break
+            if period_predicate is not None and period_col_idx is not None:
+                if not period_predicate(row[period_col_idx]):
+                    continue
+            kept.append(row)
+    finally:
+        wb.close()
 
-    df.columns = [_normalize_header(c) for c in df.columns]
+    if header_cells is None:
+        raise ParseError(f"header row {header_row} not present in sheet {sheet!r}")
+
+    # Normalise headers + give Unnamed:N names to blank cells, then disambiguate
+    # collisions (".1", ".2", ...) so the resulting DataFrame matches
+    # pd.read_excel's column-name behaviour. Several transposed APRA sheets
+    # have a blank first header cell over the entity column.
+    raw_cols = [_normalize_header(c) for c in header_cells]
+    columns = _disambiguate_column_names(raw_cols)
+    df = pd.DataFrame(kept, columns=columns)
+    # Drop fully-blank trailing rows (where every cell is None / NaN). APRA
+    # files routinely have a few empty rows after the data block.
+    df = df.dropna(how="all").reset_index(drop=True)
     return df
+
+
+def _disambiguate_column_names(cols: list[Any]) -> list[Any]:
+    """Match pd.read_excel's column-name convention.
+
+    - `None` / empty strings → `"Unnamed: <index>"` (0-based).
+    - Duplicate names → suffix `.1`, `.2`, ... so each is unique.
+    """
+    blank_filled: list[Any] = []
+    for i, c in enumerate(cols):
+        if c is None:
+            blank_filled.append(f"Unnamed: {i}")
+        elif isinstance(c, str) and not c:
+            blank_filled.append(f"Unnamed: {i}")
+        else:
+            blank_filled.append(c)
+    seen: dict[Any, int] = {}
+    out: list[Any] = []
+    for c in blank_filled:
+        if c in seen:
+            seen[c] += 1
+            out.append(f"{c}.{seen[c]}")
+        else:
+            seen[c] = 0
+            out.append(c)
+    return out
+
+
+def _make_period_predicate(
+    start_period: str | None, end_period: str | None
+) -> Callable[[Any], bool] | None:
+    """Return a fast row-skip predicate for a cell against an inclusive range.
+
+    Bounds are expanded to ISO YYYY-MM-DD strings (start→01-01, end→12-31,
+    quarter→QQ-end, etc.). Cell values may arrive as `datetime` (from typed
+    date cells) or `str`; both are normalised to ISO strings before
+    comparison. Returns None when no bounds are supplied.
+
+    Comparison is lexicographic on the ISO string, which is correct for
+    YYYY-MM-DD and well-defined for the partial forms APRA uses.
+    """
+    if not start_period and not end_period:
+        return None
+    start_iso = _expand_period_for_skip(start_period, bound="start") if start_period else None
+    end_iso = _expand_period_for_skip(end_period, bound="end") if end_period else None
+
+    def predicate(cell: Any) -> bool:
+        if cell is None:
+            return False
+        if isinstance(cell, (pd.Timestamp, datetime)):
+            try:
+                iso = cell.strftime("%Y-%m-%d")
+            except (ValueError, AttributeError):
+                return False
+        else:
+            iso = str(cell).strip()
+            if len(iso) >= 10 and iso[4:5] == "-" and iso[7:8] == "-":
+                iso = iso[:10]
+        if start_iso is not None and iso < start_iso:
+            return False
+        if end_iso is not None and iso > end_iso:
+            return False
+        return True
+
+    return predicate
+
+
+def _expand_period_for_skip(value: str, *, bound: str) -> str:
+    """Expand a user-supplied period string to an ISO YYYY-MM-DD bound.
+
+    Mirrors `shaping._expand_period_input` but kept local so parsing has no
+    dependency on shaping. Accepts ISO dates, bare years, YYYY-MM,
+    YYYY-Qx (case-insensitive). Anything else passes through.
+    """
+    if not value:
+        return value
+    s = value.strip()
+    if len(s) == 10 and s[4] == "-" and s[7] == "-":
+        return s
+    if len(s) == 4 and s.isdigit():
+        return f"{s}-01-01" if bound == "start" else f"{s}-12-31"
+    if len(s) == 7 and s[4] == "-" and s[5] in ("Q", "q"):
+        year = s[:4]
+        try:
+            q = int(s[6])
+        except ValueError:
+            return s
+        if 1 <= q <= 4:
+            if bound == "start":
+                month = {1: "01", 2: "04", 3: "07", 4: "10"}[q]
+                return f"{year}-{month}-01"
+            end_md = {1: "03-31", 2: "06-30", 3: "09-30", 4: "12-31"}[q]
+            return f"{year}-{end_md}"
+    if len(s) == 7 and s[4] == "-" and s[5:].isdigit():
+        try:
+            m = int(s[5:7])
+        except ValueError:
+            return s
+        if 1 <= m <= 12:
+            if bound == "start":
+                return f"{s}-01"
+            last_day = calendar.monthrange(int(s[:4]), m)[1]
+            return f"{s}-{last_day:02d}"
+    return s
 
 
 def _normalize_header(c):

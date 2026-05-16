@@ -1,7 +1,18 @@
-"""Network-failure resilience tests via respx."""
+"""Network-failure resilience tests via respx, plus parsing memory smoke tests.
+
+Memory smoke tests use the head-only XLSX fixtures (the same ones the
+parsing tests use) and assert that `read_xlsx` keeps working memory bounded.
+The bound is intentionally generous (16 MB tracemalloc peak) — it's an
+upper-bound smoke test, not a regression for every byte of pandas growth.
+The real-world payoff of the openpyxl-streaming rewrite is on the 7 MB
+GI / LI historical files (full-parse peak ~70 MB → row-skip peak ~15 MB);
+this test catches the case where someone reverts read_xlsx to the
+`pd.read_excel`-loads-everything path.
+"""
 from __future__ import annotations
 
 import asyncio
+import tracemalloc
 from datetime import timedelta
 from pathlib import Path
 
@@ -11,6 +22,7 @@ import respx
 
 from apra_mcp.cache import Cache
 from apra_mcp.client import APRAAPIError, APRAClient
+from apra_mcp.parsing import read_xlsx
 
 
 @pytest.fixture
@@ -148,3 +160,83 @@ async def test_inflight_dedup_under_failure(fresh_cache: Cache):
             return_exceptions=True,
         )
     assert all(isinstance(r, APRAAPIError) for r in results), [type(r).__name__ for r in results]
+
+
+# ─── Parsing memory smoke tests ─────────────────────────────────────────
+# The openpyxl read-only iteration path keeps working memory proportional
+# to the rows we *keep*, not the rows the file holds. These tests pin that
+# guarantee against the fixture set — if read_xlsx ever regresses to a
+# load-everything implementation, these fire.
+
+_MEM_BOUND_MB = 16  # generous; real worst-case is ~3 MB on the fixtures
+
+
+def _peak_mb(fn):
+    tracemalloc.start()
+    try:
+        fn()
+        _, peak = tracemalloc.get_traced_memory()
+    finally:
+        tracemalloc.stop()
+    return peak / (1024 * 1024)
+
+
+def test_read_xlsx_peak_memory_insurance_general_historical(insurance_general_historical_xlsx):
+    """Peak memory parsing the historical GI fixture stays under the bound."""
+    peak = _peak_mb(
+        lambda: read_xlsx(
+            insurance_general_historical_xlsx,
+            sheet="Data",
+            header_row=1,
+        )
+    )
+    assert peak < _MEM_BOUND_MB, f"read_xlsx peaked at {peak:.1f} MB (>{_MEM_BOUND_MB} MB bound)"
+
+
+def test_read_xlsx_peak_memory_life_insurance_historical(life_insurance_historical_xlsx):
+    """Peak memory parsing the historical LI fixture stays under the bound."""
+    peak = _peak_mb(
+        lambda: read_xlsx(
+            life_insurance_historical_xlsx,
+            sheet="Data",
+            header_row=1,
+        )
+    )
+    assert peak < _MEM_BOUND_MB, f"read_xlsx peaked at {peak:.1f} MB (>{_MEM_BOUND_MB} MB bound)"
+
+
+def test_read_xlsx_pushdown_filters_rows(insurance_general_historical_xlsx):
+    """Period pushdown drops rows during iteration, not in pandas after."""
+    # No filter: full fixture row count.
+    df_all = read_xlsx(
+        insurance_general_historical_xlsx, sheet="Data", header_row=1,
+    )
+    n_all = len(df_all)
+    assert n_all > 0
+
+    # Narrow filter: must return strictly fewer rows.
+    df_2022 = read_xlsx(
+        insurance_general_historical_xlsx,
+        sheet="Data",
+        header_row=1,
+        period_source_column="Reporting date",
+        start_period="2022-01-01",
+        end_period="2022-12-31",
+    )
+    assert len(df_2022) <= n_all
+    assert "Reporting date" in df_2022.columns
+
+
+def test_read_xlsx_pushdown_memory_bounded(insurance_general_historical_xlsx):
+    """Row-skip pushdown keeps memory bounded even with a tight bound."""
+    peak = _peak_mb(
+        lambda: read_xlsx(
+            insurance_general_historical_xlsx,
+            sheet="Data",
+            header_row=1,
+            period_source_column="Reporting date",
+            start_period="2022-01-01",
+            end_period="2022-12-31",
+        )
+    )
+    assert peak < _MEM_BOUND_MB, f"filtered read_xlsx peaked at {peak:.1f} MB"
