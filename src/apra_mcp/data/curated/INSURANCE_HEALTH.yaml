@@ -1,0 +1,103 @@
+id: INSURANCE_HEALTH
+name: Private Health Insurance Performance Statistics (quarterly, post-AASB17)
+description: |
+  Long-format quarterly private health insurance performance database
+  covering every reporting period from September 2023 onward. ~25,000 rows
+  per release with health-insurer financial position, financial performance,
+  capital adequacy, reinsurance, and operating-expense data.
+
+  Use this for: health-sector analyst questions about Medibank / Bupa /
+  HCF / NIB / HBF and the other ~30 registered private health insurers;
+  industry-aggregate questions about PHI net underwriting result, claims
+  ratios, capital strength; regulatory analysts tracking the AASB 17
+  transition for health insurers. Reported on the post-AASB-17 basis
+  effective 1 July 2023; values are NOT directly comparable to pre-2023
+  data reported on the prior accounting framework.
+
+  Source: APRA Quarterly Private Health Insurance Performance Statistics.
+  Note: APRA also publishes separate quarterly PHI publications
+  (Membership and Benefits, Coverage, Medical Gap, Membership Trends,
+  Benefit Trends) which are NOT in this dataset — this curation
+  focuses on the financial performance database.
+
+  Common data_item acronyms (APRA-specific PHI jargon):
+  - HIB = Health Insurance Business (the core PHI book — e.g.
+    "HIB premium revenue" is the industry's total quarterly premiums)
+  - HRB = Health-Related Business (ancillary travel, life, etc. that
+    PHI insurers sometimes write)
+  - HRIB = Health-Related Insurance Business
+  Examples of high-value data_items: "HIB premium revenue",
+  "HIB insurance claims", "Hospital treatment premium revenue",
+  "General treatment premium revenue", "Net profit/(loss) for the
+  period", "Capital Base", "Prescribed Capital Amount".
+period_coverage: September 2023 → latest quarter
+update_frequency: quarterly
+source_url: https://www.apra.gov.au/quarterly-private-health-insurance-performance-statistics
+download_url: https://www.apra.gov.au/sites/default/files/2026-02/Quarterly%20private%20health%20insurance%20performance%20statistics%20database%20-%20September%202023%20to%20December%202025.xlsx
+format: xlsx
+sheet: Database
+header_row: 1
+layout: wide
+cache_kind: data
+period_column: Period End
+framework:
+  current_basis: post-AASB17
+  break_date: "2023-09-30"
+  break_reason: AASB 17 Insurance Contracts implementation effective 1 July 2023. Pre-break data reported on a different accounting basis and is NOT directly comparable.
+search_keywords:
+  - private health insurance
+  - phi
+  - health insurance
+  - health insurer
+  - medibank
+  - bupa
+  - hcf
+  - nib
+  - hbf
+  - health fund
+  - phi premium
+  - phi claims
+  - phi capital
+  - aasb 17 health
+  - private health insurer financial performance
+discovery:
+  landing_url: https://www.apra.gov.au/quarterly-private-health-insurance-performance-statistics
+  filename_pattern: '(?i)private\s+health\s+insurance\s+performance\s+statistics\s+database'
+  exclude_patterns:
+    - '(?i)specifications'
+    - '(?i)historical'
+columns:
+  period:
+    source_column: "Period End"
+    description: Quarter end date (ISO YYYY-MM-DD).
+    role: dimension
+    dtype: date
+  data_item:
+    source_column: "Data item"
+    description: Specific metric being reported (e.g. "Gross premium revenue", "Claims incurred", "Net profit/(loss) for the period"). Use describe_dataset to see common values.
+    role: dimension
+    dtype: string
+    permissive: true
+  subject:
+    source_column: "Subject"
+    description: Top-level subject area (e.g. "Financial performance", "Financial position", "Capital adequacy").
+    role: dimension
+    dtype: string
+    permissive: true
+  category:
+    source_column: "Category"
+    description: Broad category grouping (e.g. "Insurance financial result", "Investment income", "Prescribed capital amount").
+    role: dimension
+    dtype: string
+    permissive: true
+  stock_or_flow:
+    source_column: "Stock or flow"
+    description: "'Stock' (balance sheet at period end) or 'Flow' (quarter income/expense)."
+    role: dimension
+    dtype: string
+  value:
+    source_column: "Value"
+    description: Observation value in AUD (mostly raw dollars, not millions — confirm against describe_dataset for the specific data_item).
+    unit: AUD
+    role: measure
+    dtype: float

@@ -162,6 +162,7 @@ async def test_flow_list_curated_is_complete():
         "LIFE_INSURANCE", "LIFE_INSURANCE_HISTORICAL",
         "QUARTERLY_SUPER_PERFORMANCE", "ADI_PROPERTY_EXPOSURES",
         "MONTHLY_BANKING_STATS", "ADI_PERFORMANCE",
+        "INSURANCE_HEALTH",
     }
     assert set(ids) == expected
 

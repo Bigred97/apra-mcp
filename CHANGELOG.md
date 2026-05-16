@@ -5,6 +5,48 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.0] - 2026-05-16
+
+### Added — INSURANCE_HEALTH (Private Health Insurance Performance Statistics)
+
+- **`INSURANCE_HEALTH` curated dataset.** Quarterly private health
+  insurance performance database — every reporting period from
+  September 2023 onward (~25,000 rows per release), covering all ~30
+  registered Australian PHI funds (Medibank, Bupa, HCF, NIB, HBF, etc.).
+  Long-format with 5 dimension columns (period, data_item, subject,
+  category, stock_or_flow) and a single Value column in AUD.
+- Closes the audit gap on PHI sector coverage: health-insurance analysts
+  can now answer "what's industry total premium revenue?", "what's the
+  claims ratio?", "which fund grew the most this quarter?".
+- Uses existing apra-mcp XLSX parser (Database sheet, header_row 1,
+  long format). No new code; YAML-only addition.
+- Framework: post-AASB17 basis (effective 1 July 2023); pre-2023 data
+  is reported on a different basis and not curated.
+- Description includes a glossary of PHI-specific acronyms (HIB =
+  Health Insurance Business, HRB = Health-Related Business, HRIB =
+  Health-Related Insurance Business) and a list of high-value
+  data_item names so clients can query directly without browsing the
+  XLSX.
+
+### Customer-value validation (live APRA fetch, 2026-05-16)
+
+- Health-sector analyst: `latest('INSURANCE_HEALTH', filters={'data_item':'HIB premium revenue'})`
+  → $8.20B industry total (Q4 2025).
+- Claims ratio: `HIB insurance claims` $7.02B / `HIB premium revenue`
+  $8.20B = 86% — realistic for Australian PHI.
+- Hospital vs general treatment split: hospital $6.09B / general $2.11B
+  (74% / 26%) consistent with public PHI sector reporting.
+- Time series query: 10 quarters Sept 2023 → Dec 2025, no gaps.
+- Search routing: "private health insurance", "health insurer",
+  "phi", "medibank", "health fund financials" all hit
+  INSURANCE_HEALTH at #1.
+
+### Tests
+
+- 288 unit tests passing. 10× zero-flake gauntlet. 16 live tests pass.
+- `test_flow_list_curated_is_complete` updated to expect 12 datasets.
+- Live `test_live_list_curated_count` updated to assert `len(ids) == 12`.
+
 ## [0.6.0] - 2026-05-16
 
 ### Added — ADI_PERFORMANCE 21-year industry-aggregate history (Wave 2)

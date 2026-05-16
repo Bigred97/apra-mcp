@@ -196,7 +196,7 @@ async def test_live_period_range_filter():
 @pytest.mark.asyncio
 async def test_live_list_curated_count():
     ids = server.list_curated()
-    assert len(ids) == 11
+    assert len(ids) == 12
 
 
 @pytest.mark.live
