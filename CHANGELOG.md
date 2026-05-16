@@ -5,6 +5,47 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.0] - 2026-05-16
+
+### Added — MYSUPER_PRODUCTS (per-product default super performance, 11-year history)
+
+- **`MYSUPER_PRODUCTS` curated dataset.** Per-product annual financial
+  performance for every MySuper offering (the regulated default super
+  products covering every Australian without explicit choice).
+  ~80-100 products per year × 11 reporting years (June 2014 → June 2025).
+- 18 columns: product identifiers (name, type, lifecycle strategy),
+  fund identifiers (name, ABN, trustee, public-offer status, type),
+  plus 10 financial measures in AUD '000s (total assets, member
+  benefit inflows/outflows, employer & member contributions, benefit
+  payments, investment income, investment + admin + operating
+  expenses, net earnings after tax, net operating performance).
+
+### Cross-MCP join key verified — Fund ABN
+
+- Customer running `latest('MYSUPER_PRODUCTS', filters={'fund_name': 'AustralianSuper'})`
+  gets `fund_abn = 65714394898`. Same ABN appears in
+  `latest('SUPER_FUND_LEVEL', filters={'fund_name': 'AustralianSuper'})`
+  → `abn = 65714394898`. Customers can now join MySuper product
+  performance with fund-level demographics for the same fund.
+
+### Customer-workflow extension (super persona)
+
+- "Compare default-product returns vs fees across competitors" —
+  previously impossible from SUPER_FUND_LEVEL alone (fund-level only,
+  inaugural Jun 2024). MYSUPER_PRODUCTS provides 11 yrs of per-product
+  detail.
+- Customers: super fund strategy/competitive intelligence, employer
+  plan sponsors comparing default options, financial advisers
+  benchmarking client outcomes, Chant West / SuperRatings, AFR.
+- Search: "mysuper", "default super", "super product comparison",
+  "super fees" all hit MYSUPER_PRODUCTS at #1.
+
+### Tests
+
+- 288 unit tests passing. 10× zero-flake.
+- `test_flow_list_curated_is_complete` expects 13 datasets.
+- `test_live_list_curated_count` updated to 13.
+
 ## [0.7.0] - 2026-05-16
 
 ### Added — INSURANCE_HEALTH (Private Health Insurance Performance Statistics)

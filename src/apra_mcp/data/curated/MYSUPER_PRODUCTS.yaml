@@ -1,0 +1,182 @@
+id: MYSUPER_PRODUCTS
+name: MySuper Products — Annual Financial Performance (2014→latest)
+description: |
+  Per-product annual financial performance for every MySuper offering —
+  the regulated default super products that all Australians without an
+  explicit choice are placed into. ~80-100 distinct MySuper products
+  per year, ~11 years of history (June 2014 → June 2025). Each row is
+  one (product × annual snapshot) pair with ~30 financial measures in
+  AUD '000s: total net assets, contributions (employer / member /
+  spouse / govt co-contribution), benefit flows, insurance flows,
+  investment income, fees, expenses, and net earnings after tax.
+
+  Customer workflow extension (super persona): "compare default-product
+  returns vs fees across competitors", "which MySuper products have the
+  lowest expense ratio?", "how did AustralianSuper's MySuper default
+  perform vs Aware Super's over 5 years?". Currently impossible from
+  SUPER_FUND_LEVEL (which is fund-level only and inaugural Jun 2024).
+
+  **Joins on Fund ABN to SUPER_FUND_LEVEL** — the same ABN appears in
+  both datasets, so customers can pull fund-level demographics and
+  per-product default performance for the same fund.
+
+  Customer audience: super fund strategy/competitive intelligence,
+  employer plan sponsors comparing default options, financial advisers
+  benchmarking client outcomes, super research firms (Chant West,
+  SuperRatings), regulatory specialists, AFR / News Corp journalists.
+
+  Source: APRA Annual MySuper Statistics back-series (June 2014 to
+  June 2025).
+period_coverage: 30 June 2014 → 30 June 2025 (annual snapshots, 11 reporting years)
+update_frequency: annual
+source_url: https://www.apra.gov.au/annual-mysuper-statistics
+download_url: https://www.apra.gov.au/sites/default/files/2025-12/Annual%20MySuper%20statistics%20backseries%20June%202014%20to%20June%202025.xlsx
+format: xlsx
+sheet: Table 1
+header_row: 7
+data_start_row: 10
+layout: wide
+cache_kind: data
+period_column: Period
+search_keywords:
+  - mysuper
+  - my super
+  - default super
+  - super product
+  - super product performance
+  - super fees
+  - super investment fees
+  - mysuper comparison
+  - default product comparison
+  - lifecycle super
+  - balanced super
+  - super product fees
+  - chant west
+  - super ratings
+discovery:
+  landing_url: https://www.apra.gov.au/annual-mysuper-statistics
+  filename_pattern: '(?i)annual\s+mysuper\s+statistics\s+backseries'
+  exclude_patterns:
+    - '(?i)specifications'
+columns:
+  period:
+    source_column: "Period"
+    description: Reporting year end (always 30 June).
+    role: dimension
+    dtype: date
+  product_name:
+    source_column: "MySuper product name"
+    description: MySuper product trade name (e.g. "AMP MySuper No.3", "ADF MySuper"). Substring matching supported.
+    role: id
+    dtype: string
+    permissive: true
+  product_type:
+    source_column: "MySuper product type"
+    description: "Generic, Large employer, or Tailored MySuper product."
+    role: dimension
+    dtype: string
+  lifecycle_strategy:
+    source_column: "Lifecycle strategy indicator"
+    description: "'Lifecycle' (de-risks with age) or 'Single' (single-strategy across all members)."
+    role: dimension
+    dtype: string
+  fund_name:
+    source_column: "Fund name"
+    description: Trustee fund's registered name. Substring matching supported. Same key as SUPER_FUND_LEVEL.fund_name (joins via ABN).
+    role: id
+    dtype: string
+    permissive: true
+  fund_abn:
+    source_column: "Fund ABN"
+    description: Fund's Australian Business Number — same key as SUPER_FUND_LEVEL.abn. Use this to join MySuper product data to fund-level demographics.
+    role: id
+    dtype: string
+    permissive: true
+  fund_trustee:
+    source_column: "Fund trustee"
+    description: Name of the corporate trustee.
+    role: dimension
+    dtype: string
+    permissive: true
+  fund_public_offer_status:
+    source_column: "Fund public offer status"
+    description: "'Public offer' (any member can join) or 'Non public offer' (e.g. employer-restricted)."
+    role: dimension
+    dtype: string
+  fund_type:
+    source_column: "Fund type"
+    description: "Retail, Industry, Public Sector, or Corporate."
+    role: dimension
+    dtype: string
+  total_assets_000:
+    source_column: "Total assets*"
+    description: Total assets of the MySuper product ($'000s). APRA's source header has a trailing space and asterisk.
+    unit: AUD thousands
+    role: measure
+    dtype: float
+  total_benefit_flows_in_000:
+    source_column: "Total Members' benefit flows in"
+    description: Total member benefit inflows (contributions + rollovers + accrued default amounts) ($'000s).
+    unit: AUD thousands
+    role: measure
+    dtype: float
+  employer_contributions_000:
+    source_column: "of which: Employer contributions"
+    description: Employer SG + voluntary employer contributions ($'000s). Sub-total of total_benefit_flows_in.
+    unit: AUD thousands
+    role: measure
+    dtype: float
+  member_contributions_000:
+    source_column: "of which: Member contributions"
+    description: Member-funded contributions (including salary sacrifice) ($'000s). Sub-total of total_benefit_flows_in.
+    unit: AUD thousands
+    role: measure
+    dtype: float
+  total_benefit_flows_out_000:
+    source_column: "Total Members' benefit flows out"
+    description: Total member benefit outflows ($'000s).
+    unit: AUD thousands
+    role: measure
+    dtype: float
+  benefit_payments_000:
+    source_column: "of which: Benefit payments"
+    description: Benefit payments to members ($'000s).
+    unit: AUD thousands
+    role: measure
+    dtype: float
+  net_member_benefit_flows_000:
+    source_column: "Net member benefits flows"
+    description: Net member benefit flows (inflows minus outflows) ($'000s).
+    unit: AUD thousands
+    role: measure
+    dtype: float
+  investment_income_000:
+    source_column: "Investment income and gains / losses"
+    description: Investment income net of gains/losses ($'000s). Note APRA's source header has a trailing space.
+    unit: AUD thousands
+    role: measure
+    dtype: float
+  investment_expenses_000:
+    source_column: "Investment expenses"
+    description: Total investment-related expenses ($'000s).
+    unit: AUD thousands
+    role: measure
+    dtype: float
+  total_admin_operating_expenses_000:
+    source_column: "Total administration and operating expenses"
+    description: Sum of admin + operating expenses for the product ($'000s).
+    unit: AUD thousands
+    role: measure
+    dtype: float
+  net_earnings_after_tax_000:
+    source_column: "Net earnings after tax"
+    description: Net earnings of the MySuper product after tax ($'000s) — the bottom line for performance comparison.
+    unit: AUD thousands
+    role: measure
+    dtype: float
+  net_operating_performance_after_tax_000:
+    source_column: "Net operating performance after tax"
+    description: Net operating performance after tax ($'000s).
+    unit: AUD thousands
+    role: measure
+    dtype: float
