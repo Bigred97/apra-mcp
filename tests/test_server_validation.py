@@ -304,3 +304,57 @@ async def test_format_error_includes_did_you_mean():
     with pytest.raises(ValueError, match="Did you mean") as excinfo:
         await server.get_data("ADI_KEY_STATS", format="record")  # type: ignore[arg-type]
     assert "records" in str(excinfo.value)
+
+
+# --- ValueError sanitisation guards -----------------------------------------
+# These pin the boundary between actionable hints and internal-detail leaks.
+# Customer-facing ValueError messages must not echo:
+#   - apra.gov.au/sites/* URLs (rotate quarterly, not actionable)
+#   - MCP-tool names like describe_dataset()/list_curated() in `Try X` hints
+#     (those reference the agent's tool registry, which the caller may not
+#     have direct access to — point at the dataset's *content* instead)
+# Field descriptions and tool docstrings are exempt — they document the
+# tool's behaviour rather than suggesting a correction.
+
+
+@pytest.mark.asyncio
+async def test_measure_error_omits_internal_tool_names():
+    """The `measure is required` hint must not name internal MCP tools."""
+    with pytest.raises(ValueError) as excinfo:
+        await server.top_n("ADI_KEY_STATS", "")
+    msg = str(excinfo.value)
+    assert "describe_dataset" not in msg, f"leaks tool name: {msg}"
+    assert "list_curated" not in msg, f"leaks tool name: {msg}"
+
+
+@pytest.mark.asyncio
+async def test_measures_list_error_omits_internal_tool_names():
+    """Bad-typed entry in measures list — hint must not name MCP tools."""
+    with pytest.raises(ValueError) as excinfo:
+        await server.get_data(
+            "ADI_KEY_STATS", measures=["cet1_ratio", 42],  # type: ignore[list-item]
+        )
+    msg = str(excinfo.value)
+    assert "describe_dataset" not in msg, f"leaks tool name: {msg}"
+
+
+@pytest.mark.asyncio
+async def test_unknown_filter_error_omits_internal_tool_names():
+    """Unknown filter key — hint must not direct users at describe_dataset()."""
+    with pytest.raises(ValueError) as excinfo:
+        await server.get_data("ADI_KEY_STATS", filters={"made_up": "x"})
+    msg = str(excinfo.value)
+    assert "describe_dataset" not in msg, f"leaks tool name: {msg}"
+    # Must still steer the caller toward the corrective info.
+    assert "Valid filters" in msg or "Did you mean" in msg
+
+
+def test_scrub_internal_urls_replaces_apra_paths():
+    """The URL scrubber masks apra.gov.au/sites paths regardless of arg style."""
+    text = (
+        "apra.gov.au returned 503 for "
+        "https://www.apra.gov.au/sites/default/files/2026-03/whatever.xlsx"
+    )
+    out = server._scrub_internal_urls(text)
+    assert "apra.gov.au/sites" not in out
+    assert "<source>" in out

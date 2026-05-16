@@ -5,6 +5,36 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.4] - 2026-05-16
+
+### Changed — Sanitise ValueError hints (no internal URLs or MCP-tool names)
+
+User-facing ValueError messages now scrub internal-detail leaks and stop
+echoing internal MCP-tool names:
+
+- The `_fetch_and_parse` upstream-error message now scrubs any
+  `apra.gov.au/sites/default/files/...` URL from the wrapped cause
+  (via the new `_scrub_internal_urls` helper) before bubbling up.
+  Rationale: those URLs rotate quarterly and aren't actionable for
+  callers.
+- The `cd.sheet is None` configuration error no longer references
+  the internal YAML file path or schema example.
+- Three measure-validation errors and the unknown-filter error in
+  `shaping.py` no longer suggest `Try describe_dataset('X')`. They now
+  point at the dataset's content ("See the dataset's measures list",
+  "See the valid-filters list for 'X'") — actionable without assuming
+  the caller has access to a sibling MCP tool.
+
+Tool docstrings and `Annotated[Field]` descriptions are *not* in scope:
+those document tool behaviour (which is the right place to reference
+sibling tools), and removing them would degrade tool discovery.
+
+### Added — Sanitisation regression tests
+
+Four new tests in `tests/test_server_validation.py` pin the rule. They
+fail-loud if a future refactor reintroduces `describe_dataset()` or
+internal-source URLs into user-facing ValueError messages.
+
 ## [0.8.3] - 2026-05-16
 
 ### Changed — Filter pushdown to the XLSX read layer (memory + speed)

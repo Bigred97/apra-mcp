@@ -88,6 +88,21 @@ async def reset_client_for_tests() -> None:
         _client = None
 
 
+# Internal source URLs (apra.gov.au file paths) that we want to keep out of
+# user-facing error strings — they rotate quarterly and reveal infrastructure
+# details that aren't actionable to callers. Replaced with "<source>" when
+# scrub_internal_urls is applied.
+_INTERNAL_URL_RE = re.compile(
+    r"https?://[^\s'\"<>)]*apra\.gov\.au[^\s'\"<>)]*",
+    re.IGNORECASE,
+)
+
+
+def _scrub_internal_urls(text: str) -> str:
+    """Replace apra.gov.au URLs with `<source>` in a user-facing string."""
+    return _INTERNAL_URL_RE.sub("<source>", text)
+
+
 def _fuzzy_suggest(query: str, candidates: list[str], cutoff: int = 60) -> str | None:
     """Return the closest candidate string if it scores >= cutoff on RapidFuzz WRatio.
 
@@ -231,7 +246,7 @@ def _validate_measures(measures: Any) -> str | list[str] | None:
                 raise ValueError(
                     f"measures list entries must be strings, got {type(m).__name__} "
                     f"({m!r}). Pass measure keys like 'cet1_ratio' or 'total_capital'. "
-                    "Try describe_dataset('<id>') to list valid measure keys."
+                    "See the dataset's measures list for the valid keys."
                 )
             s = m.strip()
             if not s:
@@ -239,14 +254,14 @@ def _validate_measures(measures: Any) -> str | list[str] | None:
                     "measures list contains an empty string. "
                     "Pass measure keys like ['cet1_ratio', 'tier1_ratio'], or omit "
                     "`measures` to return all curated measures. "
-                    "Try describe_dataset('<id>') to list valid measure keys."
+                    "See the dataset's measures list for the valid keys."
                 )
             out.append(s)
         return out
     raise ValueError(
         f"measures must be a string or list of strings, got {type(measures).__name__}. "
         "Examples: measures='cet1_ratio', or measures=['cet1_ratio', 'tier1_ratio']. "
-        "Try describe_dataset('<id>') to list valid measure keys."
+        "See the dataset's measures list for the valid keys."
     )
 
 
@@ -289,12 +304,17 @@ async def _fetch_and_parse(
     try:
         body = await client.fetch_resource(url, kind="data")
     except APRAAPIError as e:
+        # Scrub any internal source URLs that the upstream error message may
+        # have substituted in (`apra.gov.au/sites/default/files/...`) before
+        # echoing the cause to the user-facing message. Reason: those URLs
+        # rotate quarterly and are not actionable for a caller.
         raise ValueError(
             "Could not fetch the source workbook for dataset "
-            f"{cd.id!r} ({e}). The source service is intermittent; the "
-            "client will retry with a cached fallback on the next warm "
-            "call. If the failure persists, the dataset's landing page "
-            "may have moved — see the valid-IDs list for confirmation."
+            f"{cd.id!r} ({_scrub_internal_urls(str(e))}). The source service "
+            "is intermittent; the client will retry with a cached fallback "
+            "on the next warm call. If the failure persists, the dataset's "
+            "landing page may have moved — see the valid-IDs list for "
+            "confirmation."
         ) from e
 
     # Content-aware cache key (mirrors ato-mcp's design). Period bounds
@@ -863,7 +883,7 @@ async def top_n(
     if not isinstance(measure, str) or not measure.strip():
         raise ValueError(
             "measure is required and must be a non-empty string. "
-            "Use describe_dataset() to see available measure keys."
+            "See the dataset's measures list for the valid keys."
         )
     if isinstance(n, bool) or not isinstance(n, int):
         raise ValueError(

@@ -170,7 +170,7 @@ def _apply_filters(
                 f"{suggest_msg}"
                 f"Valid filters: {', '.join(valid[:15])}"
                 + ("..." if len(valid) > 15 else "")
-                + f". Try describe_dataset({cd.id!r}) to see the full filter schema."
+                + f". See the valid-filters list for {cd.id!r}."
             )
         col_def = cd.columns.get(user_key)
         permissive_col = bool(col_def and col_def.permissive)

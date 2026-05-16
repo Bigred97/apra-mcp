@@ -93,7 +93,7 @@ async def test_unknown_dataset_id_on_get_data_lists_valid_ids():
 @pytest.mark.asyncio
 async def test_measures_non_string_in_list_carries_example():
     """The 'measures list entries must be strings' message must show an
-    example of the correct shape and pointer at describe_dataset()."""
+    example of the correct shape and a pointer at the measures list."""
     with pytest.raises(ValueError) as exc_info:
         await server.get_data(
             "ADI_KEY_STATS", measures=["cet1_ratio", 42],  # type: ignore[list-item]
@@ -102,6 +102,10 @@ async def test_measures_non_string_in_list_carries_example():
     assert "cet1_ratio" in msg or "total_capital" in msg, (
         f"no example measure key in error: {msg}"
     )
-    assert "describe_dataset" in msg, (
-        f"missing pointer to describe_dataset(): {msg}"
+    # The hint must surface the measures-list correction path without
+    # echoing internal MCP tool names — those reference the harness, not
+    # something the caller can act on directly.
+    assert "measures" in msg, f"missing measures-list pointer: {msg}"
+    assert "describe_dataset" not in msg, (
+        f"error must not reference internal MCP tool names: {msg}"
     )
