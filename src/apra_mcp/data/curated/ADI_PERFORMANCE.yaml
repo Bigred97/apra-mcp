@@ -1,0 +1,98 @@
+id: ADI_PERFORMANCE
+name: ADI Industry Financial Performance — 21-year quarterly aggregate (Sept 2004→latest)
+description: |
+  Industry-aggregate quarterly P&L and balance-sheet metrics for all
+  Authorised Deposit-taking Institutions (ADIs) — banks, credit unions,
+  building societies — going back to September 2004. Each record is a
+  (metric, quarter) pair with one observation value, expressed in $ million
+  (consolidated group basis).
+
+  This is the dataset analysts cite for "how has Australian bank sector
+  net interest income evolved since 2004?", "how did ADI profitability
+  weather the 2014-2018 mortgage tightening?", and similar trend questions.
+  Where ADI_KEY_STATS gives you a per-entity capital snapshot for the
+  latest quarter only, ADI_PERFORMANCE gives you the 21-year sector-level
+  trajectory.
+
+  Metrics tracked (~36 line items): interest income (housing loans, term
+  loans, deposits, borrowings), net interest income, other operating
+  income, total operating income, operating expenses, net profit after
+  tax, impaired assets, total assets, total liabilities, equity.
+
+  For per-entity (CBA vs WBC vs NAB) capital and asset comparisons in the
+  latest quarter, use ADI_KEY_STATS. For per-entity time series, accumulate
+  ADI_KEY_STATS snapshots (APRA does not publish an entity-level back-series).
+  Source: APRA Quarterly ADI Performance Statistics, Tab 1a (financial
+  performance, excludes 'other ADIs').
+period_coverage: September 2004 → latest quarter
+update_frequency: quarterly
+source_url: https://www.apra.gov.au/quarterly-authorised-deposit-taking-institution-statistics
+download_url: https://www.apra.gov.au/sites/default/files/2026-03/Quarterly%20authorised%20deposit-taking%20institution%20performance-September%202004%20to%20December%202025.xlsx
+format: xlsx
+sheet: Tab 1a
+header_row: 4
+layout: transposed
+transposed_entity_alias: metric
+period_column: "period"
+cache_kind: data
+search_keywords:
+  - adi performance
+  - adi historical
+  - bank profitability historical
+  - bank sector performance
+  - net interest income historical
+  - bank profit time series
+  - banking sector
+  - australian bank sector
+  - bank historical
+  - industry aggregate
+  - bank trend
+  - banking trend
+  - bank profit margin
+  - bank assets historical
+discovery:
+  landing_url: https://www.apra.gov.au/quarterly-authorised-deposit-taking-institution-statistics
+  filename_pattern: '(?i)quarterly\s+authorised\s+deposit-taking\s+institution\s+performance'
+  exclude_patterns:
+    - '(?i)centralised'
+    - '(?i)property'
+columns:
+  metric:
+    source_column: "metric"
+    description: >
+      Financial line item. Common values: Interest income, Net interest
+      income, Other operating income, Total operating income, Operating
+      expenses, Net profit (loss) after tax, Total assets, Total
+      shareholders' equity, Housing loans, Term loans, Deposits.
+    role: dimension
+    dtype: string
+  period:
+    source_column: "period"
+    description: Quarter end date (ISO YYYY-MM-DD).
+    role: dimension
+    dtype: date
+  value_aud_million:
+    source_column: "value"
+    description: Observation value in AUD millions, consolidated group basis.
+    unit: AUD millions
+    role: measure
+    dtype: float
+dimension_values:
+  metric:
+    # APRA's XLSX uses footnote markers (trailing 'a') on some metric names —
+    # expose stable plain-English aliases so clients aren't tripped up.
+    net_profit_after_tax: "Net profit (loss) after taxa"
+    net_profit: "Net profit (loss) after taxa"
+    nii: "Net interest income"
+    interest_income: "Interest income"
+    interest_expense: "Interest expense"
+    operating_income: "Total operating income"
+    operating_expenses: "Total operating expenses"
+    profit_before_tax: "Profit before tax"
+    housing_loans: "Housing loans"
+    term_loans: "Term loans"
+    loans_and_advances: "Loans and advances"
+    deposits: "Deposits"
+    borrowings: "Borrowings"
+    cash_and_liquid_assets: "Cash and liquid assets"
+    number_of_entities: "Number of entities"

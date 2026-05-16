@@ -17,9 +17,9 @@ plus the cross-sister discipline.
 | PyPI package | `apra-mcp` |
 | GitHub | https://github.com/Bigred97/apra-mcp |
 
-## Curated datasets (10)
+## Curated datasets (11)
 
-ADI_KEY_STATS · ADI_RISK_WEIGHTED_ASSETS · SUPER_FUND_LEVEL · INSURANCE_GENERAL (+ historical) · LIFE_INSURANCE (+ historical) · QUARTERLY_SUPER_PERFORMANCE · ADI_PROPERTY_EXPOSURES · MONTHLY_BANKING_STATS
+ADI_KEY_STATS · ADI_RISK_WEIGHTED_ASSETS · SUPER_FUND_LEVEL · INSURANCE_GENERAL (+ historical) · LIFE_INSURANCE (+ historical) · QUARTERLY_SUPER_PERFORMANCE · ADI_PROPERTY_EXPOSURES · MONTHLY_BANKING_STATS · ADI_PERFORMANCE
 
 ## Repo-specific module set
 

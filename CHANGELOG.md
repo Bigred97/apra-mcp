@@ -5,6 +5,45 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0] - 2026-05-16
+
+### Added — ADI_PERFORMANCE 21-year industry-aggregate history (Wave 2)
+
+- **`ADI_PERFORMANCE` curated dataset.** Industry-aggregate quarterly P&L
+  and balance-sheet metrics for all Authorised Deposit-taking Institutions
+  going back to **September 2004 — 86 quarters / 21 years of history**.
+  Each record is a (metric, quarter, value) triple in AUD millions on
+  consolidated-group basis.
+- 26 metrics tracked, with plain-English aliases for the awkward
+  XLSX-footnoted names: `nii` → Net interest income, `net_profit_after_tax`
+  → "Net profit (loss) after taxa" (the trailing 'a' is a footnote marker),
+  plus aliases for housing_loans, term_loans, deposits, borrowings,
+  cash_and_liquid_assets, operating_income, operating_expenses, etc.
+- Uses APRA's existing **transposed-layout XLSX** (Tab 1a of the Quarterly
+  ADI Performance Statistics publication). No new parser code — the
+  `melt_transposed` path added in 0.4.0 handles it.
+- Closes the audit gap on "snapshot-only for APRA" — where `ADI_KEY_STATS`
+  serves per-entity capital for the latest quarter, `ADI_PERFORMANCE` now
+  serves industry-aggregate trends back to 2004.
+
+### Customer-value validation (live APRA fetch, 2026-05-16)
+
+- Bank analyst: `get_data('ADI_PERFORMANCE', filters={'metric':'nii'})`
+  returns **86 quarters** Sept 2004 → Dec 2025. NII grew from $7,684m
+  (Q3 2004) → $25,955m (Q4 2025), ~5.9% CAGR.
+- Macroeconomist: `latest('ADI_PERFORMANCE', filters={'metric':'net_profit_after_tax'})`
+  → $11,188m (Q4 2025).
+- Housing market analyst: `housing_loans` from 2020+ returns 24 quarters
+  showing growth from interest-paid line.
+- Search routing: "bank historical", "bank profitability", "sector trend",
+  "net interest income historical" all surface ADI_PERFORMANCE at the top.
+
+### Tests
+
+- 288 unit tests now (was 288 with the test_customer_flows expected set
+  updated from 10 → 11). 10× zero-flake gauntlet.
+- Live integration count assertion updated to 11.
+
 ## [0.5.1] - 2026-05-16
 
 ### Fixed
