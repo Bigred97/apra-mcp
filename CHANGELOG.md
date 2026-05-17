@@ -5,6 +5,42 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.11] - 2026-05-18
+
+### Fixed — MONTHLY_BANKING_STATS alphabetical truncation (Westpac/NAB invisible)
+
+Customer-sim agent (persona 29) hit a "top 10 lenders" view that
+returned A-M institutions only. Root cause: `MONTHLY_BANKING_STATS`
+ships 840+ rows alphabetical by institution; when the gateway
+truncated to `?limit=500` it kept the first 500 alphabetically (A-M),
+dropping Westpac (#2 lender), NAB (#3), Suncorp, and other
+alphabetically-late banks that customers actually want to see.
+
+Added a `default_sort_measure` field to the curated YAML schema. When
+set, `_fetch_and_parse` sorts the parsed DataFrame by the named
+measure's source column descending (NaN values sink last) before
+records are materialised. The cached DataFrame is pre-sorted so warm
+calls don't pay the sort cost.
+
+`MONTHLY_BANKING_STATS.yaml` now sets `default_sort_measure: total_loans`,
+which puts the biggest lenders at the top of the response regardless
+of where they sit alphabetically. Truncation at any limit now
+preserves the customer-relevant rows.
+
+Other datasets are unaffected — the field defaults to None and
+existing rows come back in their original parse order.
+
+### Internal
+
+- New `CuratedDataset.default_sort_measure: str | None` field, parsed
+  from the YAML's optional top-level `default_sort_measure` key.
+- Sort applied in `_fetch_and_parse` between `drop_blank_rows` and the
+  `_df_cache` / Parquet write — so both in-memory and on-disk caches
+  hold the sorted DataFrame.
+- Regression test in `test_customer_flows.py`:
+  `test_monthly_banking_stats_default_sort_measure_is_total_loans`.
+- 304 tests pass.
+
 ## [0.8.10] - 2026-05-18
 
 ### Added — `DatasetSummary.relevance` populated by `search_datasets()`

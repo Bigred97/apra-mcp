@@ -144,6 +144,15 @@ class CuratedDataset:
     # entity dimension's source_column and injects a 'period' column from the
     # original header value.
     first_col_header_is_period: bool = False
+    # Curated measure key to sort the DataFrame by (descending) before
+    # records are materialised. Set for datasets where alphabetical
+    # ordering of the entity dimension produces unhelpful default
+    # responses on a generic get_data call — e.g. MONTHLY_BANKING_STATS
+    # has 840+ rows alphabetical by institution, so a customer fanning
+    # out without filters + a limit=500 truncation drops Westpac/NAB/etc.
+    # Setting this to `total_loans` puts the biggest banks at the top so
+    # truncation preserves the customer-relevant rows.
+    default_sort_measure: str | None = None
 
 
 _REGISTRY: dict[str, CuratedDataset] | None = None
@@ -330,6 +339,11 @@ def _load_one(path: Path) -> CuratedDataset:
         period_column=raw.get("period_column"),
         transposed_entity_alias=str(raw.get("transposed_entity_alias", "entity")),
         first_col_header_is_period=bool(raw.get("first_col_header_is_period", False)),
+        default_sort_measure=(
+            str(raw["default_sort_measure"])
+            if isinstance(raw.get("default_sort_measure"), str)
+            else None
+        ),
     )
 
 

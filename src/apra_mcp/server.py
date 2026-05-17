@@ -407,6 +407,23 @@ async def _fetch_and_parse(
     if dim_source_cols:
         df = drop_blank_rows(df, dim_source_cols)
 
+    # Optional default sort — sister-side ranking applied before record
+    # materialisation. For datasets where alphabetical entity ordering
+    # produces unhelpful generic-fanout results (MONTHLY_BANKING_STATS
+    # listing all 60 institutions; truncate-to-500 drops Westpac/NAB/
+    # etc. because they're alphabetically late), the curated YAML can
+    # set `default_sort_measure: <key>` which resolves to the source
+    # column and gets sorted descending here. Customers filtering by
+    # explicit `measures` are unaffected — they're already narrowing.
+    if cd.default_sort_measure:
+        sort_col = cd.columns.get(cd.default_sort_measure)
+        if sort_col is not None and sort_col.source_column in df.columns:
+            # NaN values sink to the bottom (na_position="last") so missing
+            # entities don't crowd out real top-N rows.
+            df = df.sort_values(
+                by=sort_col.source_column, ascending=False, na_position="last"
+            ).reset_index(drop=True)
+
     async with _df_cache_lock:
         _df_cache[cache_key] = df
         _df_cache.move_to_end(cache_key)

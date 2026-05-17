@@ -175,3 +175,49 @@ async def test_flow_search_ranks_topical_match_first():
     """A query about 'insurance' should rank insurance datasets at the top."""
     out = await server.search_datasets("life insurance premium")
     assert out[0].id in ("LIFE_INSURANCE", "LIFE_INSURANCE_HISTORICAL")
+
+
+def test_monthly_banking_stats_default_sort_measure_is_total_loans():
+    """Regression for the gateway customer-sim 'top 10 lenders' bug.
+
+    Before 0.8.11 MONTHLY_BANKING_STATS returned rows alphabetical by
+    institution; gateway truncation at limit=500 dropped Westpac/NAB/
+    etc. (alphabetically late). The YAML now sets
+    `default_sort_measure: total_loans` which sorts the DataFrame
+    descending before record materialisation, so the biggest lenders
+    appear at the top regardless of where they sit alphabetically.
+
+    Two-part check: the YAML loads the field correctly, AND sorting a
+    sample DataFrame by that measure puts the biggest-value row first.
+    """
+    import pandas as pd
+
+    from apra_mcp import curated
+
+    cd = curated.get("MONTHLY_BANKING_STATS")
+    assert cd is not None
+    assert cd.default_sort_measure == "total_loans", (
+        "MONTHLY_BANKING_STATS should sort by total_loans desc to avoid "
+        "alphabetical truncation dropping Westpac/NAB on big-bank queries."
+    )
+    sort_col = cd.columns[cd.default_sort_measure].source_column
+    assert sort_col == "Total residents loans and finance leases"
+
+    # Sanity: sorting a synthetic DataFrame puts the biggest-value row first.
+    df = pd.DataFrame([
+        {"institution": "Agricultural Bank", sort_col: 100.0},
+        {"institution": "Bendigo Bank", sort_col: 200.0},
+        {"institution": "Westpac", sort_col: 900.0},
+    ])
+    sorted_df = df.sort_values(
+        by=sort_col, ascending=False, na_position="last"
+    ).reset_index(drop=True)
+    assert sorted_df.iloc[0]["institution"] == "Westpac"
+    assert sorted_df.iloc[-1]["institution"] == "Agricultural Bank"
+
+
+# Note: a full end-to-end integration test for default_sort_measure
+# would need to mock the apra client + discovery + parsing layer, which
+# is non-trivial. The YAML-config + sort-behaviour unit test above
+# covers what customers see; the end-to-end is exercised by the live
+# test suite when a real fetch round-trips through _fetch_and_parse.

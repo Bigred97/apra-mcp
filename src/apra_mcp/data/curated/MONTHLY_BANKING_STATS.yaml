@@ -39,6 +39,13 @@ search_keywords:
   - investment securities
   - securitised assets
   - adi balance sheet
+# Sister-side default sort. Without this the rows come back alphabetical
+# by institution; a generic get_data fanout truncated at 500 rows by the
+# gateway drops Westpac (#2 lender), NAB (#3), and other big-bank
+# institutions because they're alphabetically late. Sorting by total_loans
+# descending puts the biggest lenders at the top so truncation preserves
+# the customer-relevant rows.
+default_sort_measure: total_loans
 discovery:
   landing_url: https://www.apra.gov.au/monthly-authorised-deposit-taking-institution-statistics
   filename_pattern: '(?i)monthly\s+authorised\s+deposit.taking\s+institution\s+statistics'
