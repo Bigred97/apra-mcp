@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.12] - 2026-05-18
+
+### Improved — two-pool search ranker
+
+Customer-sim flagged sister-side relevance over-broad for ato/abs/rba
+datasets winning unrelated queries (e.g. one dataset's keyword-soup
+description scoring rel=99 for queries that had nothing to do with it).
+Same WRatio-collapse problem affected apra:
+
+Replaced the WRatio-only ranker with a two-pool design (mirrors
+abs-mcp):
+- High-signal: `id + name + curated.search_keywords` scored with
+  `token_set_ratio` — token-strict, so generic boilerplate in
+  descriptions ("Australian", "annual", "data") no longer creates
+  false-positive matches across unrelated datasets.
+- Description: capped WRatio (DESCRIPTION_CAP=30) plus half-weight
+  contribution. Lets typo-tolerant matching still work on free-text
+  queries without letting long descriptions dominate.
+
+303 tests pass.
+
 ## [0.8.11] - 2026-05-18
 
 ### Fixed — MONTHLY_BANKING_STATS alphabetical truncation (Westpac/NAB invisible)
