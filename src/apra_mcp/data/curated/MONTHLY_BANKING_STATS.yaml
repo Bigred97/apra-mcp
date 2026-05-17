@@ -31,6 +31,11 @@ search_keywords:
   - madis
   - monthly adi
   - bank assets
+  - bank deposits
+  - cash and deposits
+  - residents deposits
+  - deposits by bank
+  - deposit-taking institution
   - monthly
   - bank balance sheet
   - total assets
@@ -38,6 +43,9 @@ search_keywords:
   - trading securities
   - investment securities
   - securitised assets
+  - mortgage lending
+  - mortgages by bank
+  - home lending by bank
   - adi balance sheet
 # Sister-side default sort. Without this the rows come back alphabetical
 # by institution; a generic get_data fanout truncated at 500 rows by the

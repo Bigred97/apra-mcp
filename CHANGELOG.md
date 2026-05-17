@@ -5,6 +5,41 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.13] - 2026-05-18
+
+### Fixed — clamp-to-100 ties + MBS keyword coverage for 'bank deposits'
+
+Follow-up to 0.8.12: customer-sim verified that queries like 'bank
+deposits', 'super contributions', 'mortgage stress' produced 3-5 way
+relevance ties at rel=62.1 / 56.7 / 84.6 because the two-pool ranker
+applied `min(..., 100.0)` before sorting — once multiple candidates
+crossed 100, the clamp collapsed their distinct raw scores to the same
+display value.
+
+Two changes:
+
+- **Three-pool ranker design** (same pattern asic-mcp / aihw-mcp now
+  use): `id+name` is the PRIMARY discriminator (token_set_ratio), keywords
+  broaden recall at KEYWORD_WEIGHT=0.4, description capped, plus
+  PHRASE_BONUS=15 when the literal query is a substring of the keyword
+  haystack. The clamp moved to a post-sort proportional scaling so the
+  leader caps at 100 and others scale relative to it — preserving
+  ordering.
+- **MONTHLY_BANKING_STATS keywords**: added `bank deposits`, `cash and
+  deposits`, `residents deposits`, `deposits by bank`, `deposit-taking
+  institution`, `mortgage lending`, `mortgages by bank`, `home lending
+  by bank`. Customer queries for the per-bank residents-deposits and
+  mortgage balances now resolve to MBS (which publishes exactly those
+  rows) instead of ADI_KEY_STATS (industry aggregates).
+
+Verification:
+- 'bank deposits' → MBS at 83.2 (was 5-way tied at 62.1)
+- 'home lending by bank' → MBS at 91.0
+- 'capital adequacy' → ADI_KEY_STATS at 94.2 (clear)
+- 'insurance' → still 5-way 100 (correct: all are insurance datasets)
+
+304 unit tests pass.
+
 ## [0.8.12] - 2026-05-18
 
 ### Improved — two-pool search ranker
