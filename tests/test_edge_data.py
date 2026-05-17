@@ -99,10 +99,13 @@ def test_empty_dataframe_returns_empty_response(adi_key_stats_xlsx):
         header_row=cd.header_row,
         data_start_row=cd.data_start_row,
     )
-    # Filter that matches nothing
+    # Wildcard substring that matches no rows. We deliberately route through
+    # the wildcard branch (skips alias validation) so we exercise the
+    # empty-result path on the shaping pipeline — bare unknown values would
+    # now raise via _validate_permissive_value (0.8.5+).
     resp = build_response(
         cd=cd, df=df,
-        filters={"institution": "nonexistent_bank_xyz"},
+        filters={"institution": "nonexistent_bank_xyz_wildcard*"},
         measures="cet1_ratio",
         start_period=None, end_period=None, fmt="records", user_query={},
     )
@@ -118,9 +121,11 @@ def test_response_unit_none_when_no_records(adi_key_stats_xlsx):
         header_row=cd.header_row,
         data_start_row=cd.data_start_row,
     )
+    # Wildcard substring guaranteed to match nothing — exercises the
+    # zero-records path without tripping the permissive-value validation.
     resp = build_response(
         cd=cd, df=df,
-        filters={"institution": "nonexistent_xyz"},
+        filters={"institution": "nonexistent_xyz_wildcard*"},
         measures="cet1_ratio",
         start_period=None, end_period=None, fmt="records", user_query={},
     )
@@ -166,20 +171,23 @@ def test_period_range_filter_excludes_old(adi_key_stats_xlsx):
 
 
 def test_filter_int_value_stringified(adi_key_stats_xlsx):
-    """Filter values that aren't strings get stringified before matching."""
+    """Filter values that aren't strings get stringified before matching.
+
+    Since 0.8.5 the stringified value is also fed into the permissive-value
+    validator, so an unknown int now raises a clean ValueError (with the
+    int echoed) rather than silently producing zero rows.
+    """
     cd = curated.get("ADI_KEY_STATS")
     df = read_xlsx(
         adi_key_stats_xlsx,
         sheet=cd.sheet, header_row=cd.header_row, data_start_row=cd.data_start_row,
     )
-    # institution column is text; passing an int as value should not crash —
-    # it'll just match nothing.
-    resp = build_response(
-        cd=cd, df=df, filters={"institution": 12345},
-        measures="cet1_ratio",
-        start_period=None, end_period=None, fmt="records", user_query={},
-    )
-    assert isinstance(resp.row_count, int)
+    with pytest.raises(ValueError, match="12345"):
+        build_response(
+            cd=cd, df=df, filters={"institution": 12345},
+            measures="cet1_ratio",
+            start_period=None, end_period=None, fmt="records", user_query={},
+        )
 
 
 def test_wildcard_with_only_stars_raises(adi_key_stats_xlsx):
@@ -203,8 +211,11 @@ def test_csv_export_of_empty_records_is_empty_string(adi_key_stats_xlsx):
         adi_key_stats_xlsx,
         sheet=cd.sheet, header_row=cd.header_row, data_start_row=cd.data_start_row,
     )
+    # Wildcard substring path — skips alias validation but matches no rows,
+    # so we still exercise the empty-CSV serialisation branch.
     resp = build_response(
-        cd=cd, df=df, filters={"institution": "nonexistent"}, measures="cet1_ratio",
+        cd=cd, df=df, filters={"institution": "nonexistent_xyz_wildcard*"},
+        measures="cet1_ratio",
         start_period=None, end_period=None, fmt="csv", user_query={},
     )
     assert resp.csv == ""

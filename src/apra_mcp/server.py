@@ -124,13 +124,13 @@ def _curated_id_hint(user_id: str) -> str:
     """Build a 'Did you mean ...? Valid IDs: ...' fragment for unknown dataset IDs."""
     ids = curated.list_ids()
     if not ids:
-        return " Try list_curated() to see available IDs."
+        return " Enumerate the curated set to see available IDs."
     suggestion_str = _fuzzy_suggest(user_id.upper(), ids, cutoff=60)
     suggestion = f" Did you mean {suggestion_str!r}?" if suggestion_str else ""
     return (
         f"{suggestion} Valid IDs: {', '.join(ids[:10])}"
         + ("..." if len(ids) > 10 else "")
-        + " Try list_curated() to enumerate all, or search_datasets('<topic>')."
+        + " Enumerate the curated set or search by keyword to find more."
     )
 
 
@@ -138,14 +138,14 @@ def _normalize_dataset_id(dataset_id: Any) -> str:
     if not isinstance(dataset_id, str):
         raise ValueError(
             f"dataset_id must be a string, got {type(dataset_id).__name__}. "
-            "Try search_datasets('banks') or list_curated() to discover IDs. "
+            "Search by keyword ('banks') or enumerate the curated set to discover IDs. "
             "Example: dataset_id='ADI_KEY_STATS'."
         )
     norm = dataset_id.strip().upper()
     if not norm:
         raise ValueError(
-            "dataset_id is empty. Try list_curated() to see available IDs, "
-            "or search_datasets('banks'|'super'|'insurance'). "
+            "dataset_id is empty. Enumerate the curated set to see available IDs, "
+            "or search by keyword ('banks'|'super'|'insurance'). "
             "Example: dataset_id='ADI_KEY_STATS'."
         )
     if not _DATASET_ID_PATTERN.match(norm):
@@ -153,7 +153,7 @@ def _normalize_dataset_id(dataset_id: Any) -> str:
             f"dataset_id {dataset_id!r} contains invalid characters — "
             "apra-mcp IDs use uppercase letters, digits, and underscores "
             "(e.g. 'ADI_KEY_STATS', 'LIFE_INSURANCE'). "
-            "Try list_curated() to see the full set."
+            "Enumerate the curated set to see the full set."
         )
     return norm
 

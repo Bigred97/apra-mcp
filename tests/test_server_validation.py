@@ -5,6 +5,10 @@ a 'Try X' hint) rather than crashing partway through.
 """
 from __future__ import annotations
 
+import ast
+import pathlib
+import re
+
 import pytest
 
 from apra_mcp import server
@@ -358,3 +362,210 @@ def test_scrub_internal_urls_replaces_apra_paths():
     out = server._scrub_internal_urls(text)
     assert "apra.gov.au/sites" not in out
     assert "<source>" in out
+
+
+# --- 0.8.5 regression: silent-failure fix for permissive filters -------------
+#
+# Permissive dims with `dimension_values` (e.g. ADI_KEY_STATS / institution,
+# SUPER_FUND_LEVEL / fund_name) used to pass unknown values through and emit
+# zero rows. Now `_validate_permissive_value` rejects unknown values with a
+# "Did you mean / Valid aliases" hint, while known aliases and full source
+# names still resolve correctly. Wildcard substring (`'cba*'`) is unchanged.
+
+
+@pytest.fixture
+def _patch_fetch_for_permissive_tests(
+    monkeypatch,
+    adi_key_stats_xlsx,
+    super_fund_level_xlsx,
+):
+    """Replace `_fetch_and_parse` with a fixture-driven loader.
+
+    These tests pin the validation behaviour — they don't need (and shouldn't
+    require) a real apra.gov.au fetch. Mirrors the pattern in test_customer_flows.
+    """
+    from apra_mcp.parsing import drop_blank_rows, read_xlsx
+
+    fixtures = {
+        "ADI_KEY_STATS": adi_key_stats_xlsx,
+        "SUPER_FUND_LEVEL": super_fund_level_xlsx,
+    }
+
+    async def fake_fetch(cd, *, start_period=None, end_period=None):
+        body = fixtures.get(cd.id)
+        if body is None:
+            raise RuntimeError(f"No fixture for {cd.id}")
+        df = read_xlsx(
+            body, sheet=cd.sheet,
+            header_row=cd.header_row, data_start_row=cd.data_start_row,
+            period_source_column=cd.period_column if cd.layout == "wide" else None,
+            start_period=start_period, end_period=end_period,
+        )
+        dim_source_cols = [
+            c.source_column for c in cd.columns.values() if c.role == "dimension"
+        ]
+        if dim_source_cols:
+            df = drop_blank_rows(df, dim_source_cols)
+        return df, f"https://test/{cd.id}.xlsx", False, None
+
+    monkeypatch.setattr(server, "_fetch_and_parse", fake_fetch)
+
+
+@pytest.mark.asyncio
+async def test_get_data_unknown_institution_raises_with_hint(
+    _patch_fetch_for_permissive_tests,
+):
+    """An unknown bank alias must raise a clean ValueError that names the
+    aliases — not silently produce zero rows (the pre-0.8.5 bug).
+    """
+    with pytest.raises(ValueError) as excinfo:
+        await server.get_data(
+            "ADI_KEY_STATS", filters={"institution": "mars-bank"},
+        )
+    msg = str(excinfo.value)
+    assert "mars-bank" in msg, f"echoed value missing: {msg}"
+    # Must carry one of the two documented correction signals.
+    assert "Did you mean" in msg or "Valid aliases" in msg, (
+        f"missing correction hint: {msg}"
+    )
+    # The canonical alias list must be referenced so the caller can self-correct.
+    assert "cba" in msg or "westpac" in msg, f"alias hint missing: {msg}"
+
+
+@pytest.mark.asyncio
+async def test_get_data_known_alias_cba_returns_rows(
+    _patch_fetch_for_permissive_tests,
+):
+    """Regression check: the valid `cba` alias still resolves to CBA rows."""
+    r = await server.get_data(
+        "ADI_KEY_STATS", filters={"institution": "cba"},
+    )
+    assert r.row_count >= 7, f"expected at least 7 CBA rows, got {r.row_count}"
+    # Every record we got back must actually be Commonwealth Bank — confirms
+    # the alias translation still works after the validation wire-in.
+    for rec in r.records:
+        assert (
+            rec.dimensions.get("institution") == "Commonwealth Bank of Australia"
+        ), f"non-CBA record leaked: {rec.dimensions}"
+
+
+@pytest.mark.asyncio
+async def test_get_data_full_legal_name_still_works(
+    _patch_fetch_for_permissive_tests,
+):
+    """Full legal names (not aliases) must still be accepted — the validation
+    treats source-data values as valid even when they're not in the alias map.
+    """
+    r = await server.get_data(
+        "ADI_KEY_STATS",
+        filters={"institution": "Commonwealth Bank of Australia"},
+    )
+    assert r.row_count >= 7
+
+
+@pytest.mark.asyncio
+async def test_get_data_wildcard_still_skips_validation(
+    _patch_fetch_for_permissive_tests,
+):
+    """A trailing-`*` substring query bypasses the alias validation entirely —
+    even a completely unknown prefix is allowed (it just matches no rows).
+    """
+    r = await server.get_data(
+        "ADI_KEY_STATS",
+        filters={"institution": "nonexistent_xyz_wildcard*"},
+    )
+    assert r.row_count == 0
+
+
+@pytest.mark.asyncio
+async def test_get_data_unknown_in_list_raises(
+    _patch_fetch_for_permissive_tests,
+):
+    """An unknown value inside a list filter raises (not just bare strings)."""
+    with pytest.raises(ValueError, match="mars-bank"):
+        await server.get_data(
+            "ADI_KEY_STATS",
+            filters={"institution": ["cba", "mars-bank"]},
+        )
+
+
+@pytest.mark.asyncio
+async def test_get_data_unknown_fund_name_raises(
+    _patch_fetch_for_permissive_tests,
+):
+    """The same validation applies on SUPER_FUND_LEVEL / fund_name."""
+    with pytest.raises(ValueError) as excinfo:
+        await server.get_data(
+            "SUPER_FUND_LEVEL", filters={"fund_name": "definitely-not-a-fund"},
+        )
+    msg = str(excinfo.value)
+    assert "definitely-not-a-fund" in msg
+    assert "Did you mean" in msg or "Valid aliases" in msg
+
+
+# ----- transport-agnostic error hints (mirrors rba-mcp's guard) -----
+#
+# Error messages must not reference MCP-tool names (e.g. `describe_dataset()`,
+# `search_datasets()`, `list_curated()`). An error from the apra_mcp package
+# should read the same whether the caller is an MCP client, a REST gateway,
+# or a Python script calling the functions directly.
+
+_SRC_ROOT = pathlib.Path(__file__).resolve().parent.parent / "src" / "apra_mcp"
+
+
+def _extract_user_facing_strings() -> list[tuple[pathlib.Path, int, str]]:
+    """Walk every .py under src/apra_mcp/, parse the AST, and yield only the
+    string arguments to `raise <SomeExc>(...)` calls — these are the strings
+    users actually see in error reports.
+    """
+    out: list[tuple[pathlib.Path, int, str]] = []
+    for py in _SRC_ROOT.rglob("*.py"):
+        tree = ast.parse(py.read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Raise) or node.exc is None:
+                continue
+            call = node.exc if isinstance(node.exc, ast.Call) else None
+            if call is None:
+                continue
+            for arg in call.args:
+                pieces: list[str] = []
+                if isinstance(arg, ast.Constant) and isinstance(arg.value, str):
+                    pieces.append(arg.value)
+                elif isinstance(arg, ast.JoinedStr):
+                    for v in arg.values:
+                        if isinstance(v, ast.Constant) and isinstance(v.value, str):
+                            pieces.append(v.value)
+                elif isinstance(arg, ast.BinOp):
+                    stack: list[ast.AST] = [arg]
+                    while stack:
+                        cur = stack.pop()
+                        if isinstance(cur, ast.Constant) and isinstance(cur.value, str):
+                            pieces.append(cur.value)
+                        elif isinstance(cur, ast.BinOp):
+                            stack.append(cur.left)
+                            stack.append(cur.right)
+                        elif isinstance(cur, ast.JoinedStr):
+                            for v in cur.values:
+                                stack.append(v)
+                if pieces:
+                    out.append((py, node.lineno, "".join(pieces)))
+    return out
+
+
+def test_no_mcp_tool_refs_in_error_strings():
+    """No error message references an MCP tool by name
+    (`describe_dataset(...)`, `search_datasets(...)`, `list_curated(...)`).
+    The hint must suggest what to do (look up valid keys, retry, etc.)
+    without naming a specific transport's API surface.
+    """
+    pat = re.compile(r"\b(describe_dataset|search_datasets|list_curated)\s*\(")
+    offenders: list[str] = []
+    for path, lineno, text in _extract_user_facing_strings():
+        if pat.search(text):
+            offenders.append(f"{path.relative_to(_SRC_ROOT.parent.parent)}:{lineno}: {text!r}")
+    assert not offenders, (
+        "User-facing error messages reference MCP tool names — "
+        "these are transport-specific and shouldn't leak through ValueError. "
+        "Replace with transport-agnostic hints (e.g. 'See the valid-options list "
+        f"for X').\n  {chr(10).join(offenders)}"
+    )

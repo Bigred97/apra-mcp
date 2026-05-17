@@ -67,13 +67,14 @@ def test_error_message_includes_valid_options():
 @pytest.mark.asyncio
 async def test_unknown_dataset_id_suggests_close_match():
     """A near-miss dataset id should get a 'Did you mean ADI_KEY_STATS?' hint
-    plus the list of valid IDs — not just "Try list_curated()"."""
+    plus the list of valid IDs — phrased transport-agnostically (no MCP tool
+    names like `list_curated()` per the cross-sister convention)."""
     with pytest.raises(ValueError) as exc_info:
         await server.describe_dataset("ADI_KEYSTATS")  # missing underscore
     msg = str(exc_info.value)
     assert "Did you mean" in msg, f"missing did-you-mean hint: {msg}"
     assert "ADI_KEY_STATS" in msg, f"missing closest match: {msg}"
-    assert "list_curated" in msg, f"missing tool pointer: {msg}"
+    assert "curated set" in msg, f"missing corrective hint: {msg}"
 
 
 @pytest.mark.asyncio

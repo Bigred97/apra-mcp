@@ -49,6 +49,73 @@ def _fuzzy_filter_key_suggest(query: str, candidates: list[str], cutoff: int = 6
     return match[0] if match else None
 
 
+def _fuzzy_value_suggest(query: str, candidates: list[str], cutoff: int = 70) -> str | None:
+    """Closest filter-value match for `query` from `candidates`, or None.
+
+    Higher cutoff than `_fuzzy_filter_key_suggest` because value candidate pools
+    are larger (every alias + every source-data value) and a spurious suggestion
+    on a wildly wrong input is worse than no suggestion at all.
+    """
+    if not query or not candidates:
+        return None
+    try:
+        from rapidfuzz import fuzz, process
+    except ImportError:
+        return None
+    match = process.extractOne(query, candidates, scorer=fuzz.WRatio, score_cutoff=cutoff)
+    return match[0] if match else None
+
+
+def _validate_permissive_value(
+    cd: CuratedDataset,
+    user_key: str,
+    user_val: str,
+    resolved: str,
+    source: pd.DataFrame,
+) -> None:
+    """For permissive dims with an alias map, raise if `user_val` is unknown.
+
+    A value is considered known when (a) it matches a `dimension_values` alias
+    key, (b) it matches a canonical alias value, or (c) it appears in the
+    source data column. Anything else would silently filter to zero rows —
+    so we raise with a "Did you mean / Valid aliases" hint that points the
+    caller at the documented aliases and the wildcard escape hatch.
+
+    Permissive dims with NO `dimension_values` map (e.g. free-form ABNs) are
+    intentionally skipped — there's nothing actionable to suggest.
+    """
+    dv = cd.dimension_values.get(user_key)
+    if dv is None or not dv.values:
+        return
+    alias_keys = set(dv.values.keys())
+    canonicals = set(dv.values.values())
+    if user_val in alias_keys or user_val in canonicals:
+        return
+    if resolved in canonicals:
+        return
+    if user_key not in source.columns:
+        return
+    source_values = set(source[user_key].dropna().astype("string").unique().tolist())
+    if user_val in source_values or resolved in source_values:
+        return
+
+    sorted_aliases = sorted(alias_keys)
+    candidate_pool = list(alias_keys) + sorted(source_values)
+    suggestion = _fuzzy_value_suggest(user_val, candidate_pool)
+    suggest_msg = f" Did you mean {suggestion!r}?" if suggestion else ""
+    alias_hint = (
+        f" Valid aliases: {', '.join(sorted_aliases[:10])}."
+        if sorted_aliases else ""
+    )
+    raise ValueError(
+        f"Unknown {user_key} {user_val!r} for dataset {cd.id!r}.{suggest_msg}"
+        f"{alias_hint} "
+        "For other entities, pass the exact name from the source data, or use a "
+        f"trailing '*' for substring search (e.g. {{{user_key!r}: '<prefix>*'}}). "
+        f"See the valid-{user_key} list for {cd.id!r}."
+    )
+
+
 def _safe_value(v: Any) -> float | None:
     if v is None:
         return None
@@ -159,6 +226,11 @@ def _apply_filters(
         return df
 
     valid_dim_keys = {c.key for c in cd.columns.values() if c.role in ("dimension", "id")}
+    # Validation snapshot — checked against the *original* (unfiltered) data so
+    # an earlier filter doesn't false-positive a later "unknown value" hint
+    # (e.g. user filters period to 2025-12-31, then institution to one that
+    # exists in the dataset but not at that period).
+    original = df
     out = df
     for user_key, user_val in filters.items():
         if user_key not in valid_dim_keys:
@@ -181,8 +253,14 @@ def _apply_filters(
                     f"Filter {user_key!r} has an empty list. "
                     "Pass at least one value, or omit the filter."
                 )
-            resolved = [translate_filter_value(cd, user_key, str(v).strip()) for v in user_val]
-            mask = out[user_key].astype("string").isin(resolved)
+            resolved_list: list[str] = []
+            for v in user_val:
+                v_str = str(v).strip()
+                resolved_v = translate_filter_value(cd, user_key, v_str)
+                if permissive_col:
+                    _validate_permissive_value(cd, user_key, v_str, resolved_v, original)
+                resolved_list.append(resolved_v)
+            mask = out[user_key].astype("string").isin(resolved_list)
         else:
             v_str = str(user_val).strip()
             # Wildcard substring match: 'cba*' or '*cba*' or 'cba~'
@@ -200,6 +278,8 @@ def _apply_filters(
                 )
             else:
                 resolved = translate_filter_value(cd, user_key, v_str)
+                if permissive_col:
+                    _validate_permissive_value(cd, user_key, v_str, resolved, original)
                 mask = out[user_key].astype("string") == str(resolved)
         out = out.loc[mask]
     return out.reset_index(drop=True)

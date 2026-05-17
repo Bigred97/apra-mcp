@@ -130,10 +130,15 @@ async def test_top_n_with_period_filter():
 
 @pytest.mark.asyncio
 async def test_top_n_handles_no_results():
-    """Filter that matches nothing → empty result, not error."""
+    """Filter that matches nothing → empty result, not error.
+
+    Uses a wildcard substring to exercise the empty-result path on the
+    permissive `institution` dim — bare unknown values now raise via
+    `_validate_permissive_value` (0.8.5+).
+    """
     r = await server.top_n(
         "ADI_KEY_STATS", "cet1_ratio", n=5,
-        filters={"institution": "atlantis_bank_xyz"},
+        filters={"institution": "atlantis_bank_xyz_wildcard*"},
     )
     assert r.row_count == 0
     assert r.records == []

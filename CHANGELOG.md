@@ -5,6 +5,49 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.5] - 2026-05-17
+
+### Fixed — Silent-failure mode on unknown permissive filter values
+
+`get_data()` previously returned zero rows silently when a user passed an
+institution / fund_name value that wasn't a known alias and didn't exist in
+the source data (e.g. `filters={"institution": "mars-bank"}` on
+`ADI_KEY_STATS`). The downstream LLM saw an empty response and couldn't
+distinguish "no data for this entity" from "you typoed the name".
+
+Now `_apply_filters` (shaping.py) validates permissive dim values that have a
+`dimension_values` alias map. A value is accepted if it matches an alias, a
+canonical alias value, or appears in the source data column. Anything else
+raises `ValueError` with a "Did you mean / Valid aliases" hint that names
+the documented aliases and points at the wildcard escape hatch
+(`{"institution": "macquarie*"}`).
+
+Applies to all curated APRA datasets that pair `permissive: true` columns
+with an alias map: ADI_KEY_STATS, ADI_RISK_WEIGHTED_ASSETS,
+MONTHLY_BANKING_STATS (institution), SUPER_FUND_LEVEL (fund_name),
+ADI_PROPERTY_EXPOSURES (property_type), and the insurance datasets.
+
+Permissive dims with NO alias map (e.g. `abn`, `fund_trustee`) keep their
+free-form pass-through — there's nothing actionable to suggest. Wildcard
+substring queries (`'cba*'`, `'commonwealth~'`) also bypass validation.
+
+Validation runs against the *original* (unfiltered) DataFrame so an earlier
+filter (e.g. period) doesn't false-positive a later "unknown value" hint.
+
+### Added — Permissive-filter validation regression tests
+
+Six new tests in `tests/test_server_validation.py` pin the rule end-to-end:
+
+- Unknown institution raises with "Did you mean / Valid aliases" hint
+- Known alias `cba` still resolves to 7+ Commonwealth Bank rows
+- Full legal name "Commonwealth Bank of Australia" still accepted
+- Wildcard `'nonexistent_xyz*'` still skips validation (returns 0 rows)
+- Unknown value inside a list filter raises
+- Same validation applies to SUPER_FUND_LEVEL / fund_name
+
+Three pre-existing edge-data tests that relied on silent zero-row behaviour
+were updated to use the wildcard escape hatch.
+
 ## [0.8.4] - 2026-05-16
 
 ### Changed — Sanitise ValueError hints (no internal URLs or MCP-tool names)
