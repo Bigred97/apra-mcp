@@ -479,8 +479,9 @@ async def describe_dataset(
         str,
         Field(
             description=(
-                "Curated dataset ID. Use search_datasets() to discover or "
-                "list_curated() to enumerate. Case-insensitive."
+                "Curated dataset ID. Use the search endpoint or search tool "
+                "to discover, or the list-curated endpoint/tool to enumerate. "
+                "Case-insensitive."
             ),
             examples=[
                 "ADI_KEY_STATS",
@@ -653,7 +654,7 @@ async def get_data(
     dataset_id: Annotated[
         str,
         Field(
-            description="Curated dataset ID. Use search_datasets() / list_curated().",
+            description="Curated dataset ID. Use the search or list-curated endpoint/tool to discover.",
             examples=["ADI_KEY_STATS", "SUPER_FUND_LEVEL", "LIFE_INSURANCE"],
         ),
     ],
@@ -821,8 +822,8 @@ async def top_n(
         str,
         Field(
             description=(
-                "Plain-English measure key to rank by. Use describe_dataset() "
-                "to see available measures."
+                "Plain-English measure key to rank by. Use the describe "
+                "endpoint or describe tool to see available measures."
             ),
             examples=["total_capital", "cet1_ratio", "total_member_accounts", "value"],
         ),

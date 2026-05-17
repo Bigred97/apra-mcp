@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.7] - 2026-05-17
+
+### Improved — transport-agnostic Field descriptions
+
+Three `Field(description=...)` strings in `server.py` referenced
+MCP-tool-name (`search_datasets()`, `list_curated()`,
+`describe_dataset()`). These descriptions become part of the parameter
+schema, so REST-gateway customers calling `/v1/{describe,latest,top-n}/...`
+saw "Use search_datasets() to discover" — confusing because they're
+not calling a Python function. Rewrote all three to the
+"{endpoint or tool}" form. Matches the ato 0.8.7 / rba 0.7.5 portfolio
+guard. No runtime behaviour change.
+
 ## [0.8.6] - 2026-05-17
 
 ### Fixed — event-loop blocking on sync XLSX parse
