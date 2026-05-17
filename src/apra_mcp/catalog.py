@@ -44,16 +44,24 @@ def search(query: str, limit: int = 10) -> list[DatasetSummary]:
     PHRASE_BONUS = 15
     keyword_lookup = {cd.id: " ".join(cd.search_keywords) for cd in curated_mod.list_all()}
     query_lc = query.lower()
+    # Short single-token queries get length-penalised by token_set_ratio
+    # (e.g. 'ADI' vs the long ADI_KEY_STATS name returns ~7 even though
+    # 'ADI' is the literal prefix). For ≤2-token queries supplement
+    # name_high with partial_ratio so substring matches still score 100.
+    q_token_count = len([t for t in query_lc.split() if t.strip()])
+    use_partial_supplement = q_token_count <= 2
     # Three-pool design: id+name is the PRIMARY discriminator. Keywords
     # broaden recall at reduced weight (otherwise unrelated datasets
     # whose keyword bag happens to contain a query token tie with the
-    # named dataset). Same pattern asic-mcp 0.6.8 uses.
+    # named dataset).
     candidates: list[tuple[float, float, int]] = []
     for i, s in enumerate(summaries):
         name_str = f"{s.id} {s.name}".lower()
         kw_str = f"{name_str} {keyword_lookup.get(s.id, '')}".lower()
         desc_str = (s.description or "").lower()
         name_high = fuzz.token_set_ratio(query_lc, name_str)
+        if use_partial_supplement:
+            name_high = max(name_high, fuzz.partial_ratio(query_lc, name_str))
         kw_high = fuzz.token_set_ratio(query_lc, kw_str)
         desc_raw = fuzz.WRatio(query_lc, desc_str) if desc_str else 0
         desc = min(desc_raw, DESCRIPTION_CAP)
