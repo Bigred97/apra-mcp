@@ -351,7 +351,12 @@ async def _fetch_and_parse(
         pushdown_period_col = cd.period_column
         pushdown_start = start_period
         pushdown_end = end_period
-    df = read_xlsx(
+    # Run sync openpyxl/pandas parse off the event loop. APRA quarterly
+    # statistics XLSX files are ~15MB peak under row-skip iteration; parsing
+    # them inline serialises every concurrent request behind one parse and
+    # stalls downstream consumers like the ausdata-api gateway.
+    df = await asyncio.to_thread(
+        read_xlsx,
         body,
         sheet=cd.sheet,
         header_row=cd.header_row,

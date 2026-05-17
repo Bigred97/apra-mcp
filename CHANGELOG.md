@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.6] - 2026-05-17
+
+### Fixed — event-loop blocking on sync XLSX parse
+
+`_fetch_and_parse` called `read_xlsx` synchronously inside an async tool
+body. APRA quarterly statistics XLSX files run ~15MB peak under row-skip
+iteration; the sync parse blocked the event loop for seconds and
+serialised every concurrent request behind a single parse, stalling
+downstream consumers like the `ausdata-api` gateway against its 20s
+budget. Wrapped the call in `asyncio.to_thread` so the parse runs on the
+default executor without blocking other in-flight tool calls. Matches
+the 0.4.7 / 0.6.4 fixes in `aihw-mcp` / `asic-mcp`.
+
 ## [0.8.5] - 2026-05-17
 
 ### Fixed — Silent-failure mode on unknown permissive filter values
