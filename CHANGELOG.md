@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.15] - 2026-05-18
+
+### Fixed — latest() now caps INSURANCE_GENERAL register dumps
+
+`latest('INSURANCE_GENERAL')` returned 1,966 rows / 1 MB JSON — over
+the portfolio's 10k-token target. Added `limit` parameter to `latest()`
+(default 50, max 10,000) matching ato 0.8.14 / asic patterns.
+
+Verification:
+- `latest('INSURANCE_GENERAL')` → 50 rows, 25 KB, truncated_at=1966
+- `latest('ADI_KEY_STATS')` → 7 rows (unchanged, no cap needed)
+
+304 unit tests pass.
+
 ## [0.8.14] - 2026-05-18
 
 ### Improved — high-confidence "Did you mean?" on non-permissive free-form dim typos

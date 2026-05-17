@@ -506,6 +506,7 @@ def build_response(
     download_url: str | None = None,
     stale: bool = False,
     stale_reason: str | None = None,
+    limit: int | None = None,
 ) -> DataResponse:
     """Single entrypoint shaping uses to build a DataResponse."""
     if df is None or df.empty:
@@ -579,6 +580,15 @@ def build_response(
             period_start = period_start or periods[0]
             period_end = period_end or periods[-1]
 
+    # Apply caller-supplied `limit` (e.g. latest() uses limit=50 to
+    # keep wide-layout responses under the agent context window).
+    # truncated_at preserves the original count so callers can detect
+    # truncation. Same pattern as ato 0.8.14 / asic.
+    truncated_at: int | None = None
+    if limit is not None and limit > 0 and len(records) > limit:
+        truncated_at = len(records)
+        records = records[:limit]
+
     if fmt == "csv":
         out_records: list[Observation] | list[dict[str, Any]] = []
         csv_text: str | None = records_to_csv(records)
@@ -605,6 +615,7 @@ def build_response(
         period={"start": period_start, "end": period_end},
         unit=response_unit,
         row_count=len(records),
+        truncated_at=truncated_at,
         records=out_records,
         csv=csv_text,
         retrieved_at=datetime.now(timezone.utc),

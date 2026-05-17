@@ -602,6 +602,7 @@ async def _get_data_impl(
     end_period: Any,
     fmt: Any,
     last_n: int | None = None,
+    limit: int | None = None,
 ) -> DataResponse:
     # Reset the graceful-degradation flag at the start of each tool call so
     # we only report staleness introduced by THIS call's fetches.
@@ -679,6 +680,7 @@ async def _get_data_impl(
         download_url=url_used,
         stale=stale,
         stale_reason=stale_reason,
+        limit=limit,
     )
 
 
@@ -826,19 +828,36 @@ async def latest(
             examples=["cet1_ratio", "total_member_accounts", "value"],
         ),
     ] = None,
+    limit: Annotated[
+        int,
+        Field(
+            description=(
+                "Maximum rows to return. Wide-layout entity-level datasets "
+                "(INSURANCE_GENERAL ~2,000 rows per quarter) can blow an "
+                "agent's context window without a cap. Pass filters to "
+                "narrow to one entity; raise `limit` only if you genuinely "
+                "need a bulk dump. Truncated responses set "
+                "DataResponse.truncated_at to the original row count."
+            ),
+            ge=1,
+            le=10000,
+            examples=[50, 100, 500],
+        ),
+    ] = 50,
 ) -> DataResponse:
     """Return the most recent observation per measure for a dataset.
 
     Trims to the single latest period per measure across the filtered slice
     — useful for "what's CBA's current CET1?" style questions without having
-    to think about start_period.
+    to think about start_period. Wide-layout entity-level datasets
+    (INSURANCE_GENERAL etc.) are capped at `limit` rows.
 
     Examples:
         # Latest CBA capital ratios
         resp = await latest("ADI_KEY_STATS", filters={"institution": "cba"})
     """
     return await _get_data_impl(
-        dataset_id, filters, measures, None, None, "records", last_n=1
+        dataset_id, filters, measures, None, None, "records", last_n=1, limit=limit
     )
 
 
