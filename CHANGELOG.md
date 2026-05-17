@@ -5,6 +5,37 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.9] - 2026-05-18
+
+### Performance — Parquet on-disk parsed-DataFrame cache
+
+Customer-sim agent re-confirmed cold-call timeouts on `INSURANCE_GENERAL`
+on the live gateway even after 0.8.6's `asyncio.to_thread` wrap. The
+in-memory LRU only helps warm calls — on Fly's daily rebuild / worker
+bounce the first request paid the full 2-5s openpyxl parse, which
+combined with network fetch + JSON serialisation tripped the gateway's
+20s budget on the largest datasets.
+
+Added a Parquet on-disk fallback (mirror of wgea 0.6.4 / aihw 0.4.9 /
+ato 0.8.8):
+
+- After parse, DataFrame is persisted to
+  `~/.apra-mcp/parquet-cache/{sha256-of-key}.parquet` (overridable via
+  `APRA_MCP_PARQUET_CACHE_DIR`).
+- Before parsing, check the file: read with `pd.read_parquet` in
+  ~0.3-0.5s on warm cache.
+- TTL: 24h, matching APRA's quarterly publish cadence.
+- Self-heal: corrupted Parquet unlinked, falls through to fresh parse.
+- Atomic write via `.tmp` + rename.
+
+### Internal
+
+- Added `pyarrow>=15` dep.
+- New `parquet_cache.py` module (~90 lines).
+- `reset_df_cache_for_tests()` now clears both LRU + Parquet.
+- Conftest fixture isolates `APRA_MCP_PARQUET_CACHE_DIR` per session.
+- 303 tests pass.
+
 ## [0.8.8] - 2026-05-17
 
 ### Performance — landing/discovery cache TTL 6h → 24h

@@ -25,7 +25,7 @@ import pandas as pd
 from fastmcp import FastMCP
 from pydantic import Field
 
-from . import catalog, curated
+from . import catalog, curated, parquet_cache
 from .client import APRAAPIError, APRAClient, get_stale_signal, reset_stale_signal
 from .discovery import DiscoverySpec, resolve_for_dataset
 from .models import (
@@ -65,8 +65,9 @@ _df_cache_lock = asyncio.Lock()
 
 
 def reset_df_cache_for_tests() -> None:
-    """Drop the parsed-DataFrame cache."""
+    """Drop the in-memory LRU + the on-disk Parquet cache."""
     _df_cache.clear()
+    parquet_cache.reset_for_tests()
 
 
 async def _get_client() -> APRAClient:
@@ -334,6 +335,19 @@ async def _fetch_and_parse(
             _df_cache.move_to_end(cache_key)
             return cached, url, stale, stale_reason
 
+    # On-disk Parquet fallback (warm cache for cold-restart workers).
+    # APRA's INSURANCE_GENERAL XLSX is ~15MB / 18k rows / 2-5s to parse
+    # cold — combined with network + serialisation this can trip the
+    # ausdata-api 20s budget. Parquet reads the same DataFrame in ~0.3s.
+    parquet_df = await asyncio.to_thread(parquet_cache.read_if_fresh, cache_key)
+    if parquet_df is not None:
+        async with _df_cache_lock:
+            _df_cache[cache_key] = parquet_df
+            _df_cache.move_to_end(cache_key)
+            while len(_df_cache) > _DF_CACHE_MAX_ENTRIES:
+                _df_cache.popitem(last=False)
+        return parquet_df, url, stale, stale_reason
+
     if cd.sheet is None:
         raise ValueError(
             f"Dataset {cd.id!r} has no sheet declared in its curated "
@@ -398,6 +412,8 @@ async def _fetch_and_parse(
         _df_cache.move_to_end(cache_key)
         while len(_df_cache) > _DF_CACHE_MAX_ENTRIES:
             _df_cache.popitem(last=False)
+    # Persist for the next cold worker. Best-effort; swallows IO errors.
+    await asyncio.to_thread(parquet_cache.write, cache_key, df)
 
     return df, url, stale, stale_reason
 

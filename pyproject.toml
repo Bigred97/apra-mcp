@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "apra-mcp"
-version = "0.8.8"
+version = "0.8.9"
 description = "MCP server for Australian Prudential Regulation Authority statistics. Plain-English access to bank capital ratios, superannuation fund-level data, and life + general insurance — every prudentially-regulated entity in Australia, every quarter, with auto-discovery and a CC-BY 3.0 AU attribution contract."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -37,6 +37,7 @@ dependencies = [
     "rapidfuzz>=3.9",
     "pandas>=2.2,<3",
     "openpyxl>=3.1",
+    "pyarrow>=15",
     "aiosqlite>=0.20",
     "PyYAML>=6.0",
     "aus-identity>=0.1.0",
