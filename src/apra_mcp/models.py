@@ -38,6 +38,9 @@ class DatasetSummary(BaseModel):
     description: str | None = None
     update_frequency: str | None = None      # "quarterly" / "annual"
     is_curated: bool = False
+    # 0-100 RapidFuzz WRatio score against the search query. None when
+    # entry came from list_curated() rather than search_datasets().
+    relevance: float | None = None
 
 
 class ColumnDetail(BaseModel):
