@@ -23,8 +23,13 @@ DEFAULT_DB_PATH = Path.home() / ".apra-mcp" / "cache.db"
 
 TTL: dict[CacheKind, timedelta] = {
     "data": timedelta(days=7),
-    "landing": timedelta(hours=6),
-    "discovery": timedelta(hours=6),
+    # Landing pages + resolved download URLs change quarterly at most
+    # (APRA bumps the filename when a new quarter is published). 24h is
+    # the right cadence for warm-cache reuse — bumped from 6h after the
+    # ausdata-api customer-sim flagged 10.8s cold-restart fetches on
+    # ADI_KEY_STATS that were eating the gateway's 20s budget.
+    "landing": timedelta(hours=24),
+    "discovery": timedelta(hours=24),
     "catalog": timedelta(hours=1),
 }
 

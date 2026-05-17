@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.8] - 2026-05-17
+
+### Performance — landing/discovery cache TTL 6h → 24h
+
+The `ausdata-api` customer-sim flagged a 10.8s cold-restart fetch on
+`ADI_KEY_STATS` that was eating the gateway's 20s budget. The cost was
+fully accounted for: ~2s landing HTML scrape, ~5s XLSX fetch, ~1-3s
+parse. The bulk of the savings opportunity is the landing/discovery
+round-trip — APRA bumps the filename only quarterly when a new
+reporting period drops, so 6h was over-fresh. Raised to 24h, matching
+the catalog/discovery cadence on other sisters with similar
+quarterly-publication shapes (aihw, ato). Cold-restart calls within a
+24h window now skip the HTML scrape + URL extraction entirely.
+
 ## [0.8.7] - 2026-05-17
 
 ### Improved — transport-agnostic Field descriptions
