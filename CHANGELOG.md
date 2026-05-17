@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.14] - 2026-05-18
+
+### Improved — high-confidence "Did you mean?" on non-permissive free-form dim typos
+
+Permissive dims (institution, abn, fund_name) are already handled by
+`_validate_permissive_value` which suggests close matches against the
+source data. But non-permissive free-form dims (no enum, no permissive
+flag) used to silently return 0 rows on typos.
+
+Now: after filtering on a non-permissive non-enum dim, if the result is
+empty AND difflib finds a HIGH-confidence close match (cutoff=0.7),
+raise ValueError with the suggestion. Matches ato 0.8.13 / aihw 0.4.13 /
+asic 0.6.9 design.
+
+304 unit tests pass.
+
 ## [0.8.13] - 2026-05-18
 
 ### Fixed — clamp-to-100 ties + MBS keyword coverage for 'bank deposits'

@@ -16,6 +16,7 @@ every time, regardless of which APRA publication it came from.
 """
 from __future__ import annotations
 
+import difflib
 import math
 from datetime import datetime, timezone
 from typing import Any
@@ -261,8 +262,11 @@ def _apply_filters(
                     _validate_permissive_value(cd, user_key, v_str, resolved_v, original)
                 resolved_list.append(resolved_v)
             mask = out[user_key].astype("string").isin(resolved_list)
+            unresolved_value = ", ".join(str(v).strip() for v in user_val)
+            is_wildcard = False
         else:
             v_str = str(user_val).strip()
+            unresolved_value = v_str
             # Wildcard substring match: 'cba*' or '*cba*' or 'cba~'
             if permissive_col and (v_str.endswith("*") or v_str.startswith("*") or "~" in v_str):
                 needle = v_str.replace("*", "").replace("~", "").strip()
@@ -276,12 +280,38 @@ def _apply_filters(
                 mask = out[user_key].astype("string").str.contains(
                     needle, case=False, na=False, regex=False,
                 )
+                is_wildcard = True
             else:
                 resolved = translate_filter_value(cd, user_key, v_str)
                 if permissive_col:
                     _validate_permissive_value(cd, user_key, v_str, resolved, original)
                 mask = out[user_key].astype("string") == str(resolved)
-        out = out.loc[mask]
+                is_wildcard = False
+        next_out = out.loc[mask]
+        # High-confidence "Did you mean?" for free-form dim typos.
+        # Permissive dims are handled by _validate_permissive_value
+        # above. Wildcard matches and dims with enum maps are skipped.
+        # Cutoff 0.7 strict; matches ato 0.8.13 / aihw 0.4.13 / asic 0.6.9.
+        if next_out.empty and not out.empty and not is_wildcard and not permissive_col:
+            dv = cd.dimension_values.get(user_key)
+            has_enum = dv is not None and dv.values
+            if not has_enum:
+                actual_values = out[user_key].dropna().astype(str).unique().tolist()
+                suggestion = difflib.get_close_matches(
+                    unresolved_value, actual_values, n=3, cutoff=0.7
+                )
+                if suggestion:
+                    others = (
+                        f" Other close matches: {', '.join(repr(s) for s in suggestion[1:])}."
+                        if len(suggestion) > 1
+                        else ""
+                    )
+                    raise ValueError(
+                        f"No matches for {unresolved_value!r} in {user_key!r} on dataset {cd.id!r}. "
+                        f"Did you mean {suggestion[0]!r}?{others} "
+                        f"Use the describe endpoint or describe tool for the full value list on {cd.id!r}."
+                    )
+        out = next_out
     return out.reset_index(drop=True)
 
 
