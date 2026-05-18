@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.19] - 2026-05-18
+
+### Added — `prewarm_curated()` + `apra-mcp --warmup` CLI
+
+Ports abs-mcp 0.11.14's prewarm pattern to apra-mcp. Same shape and
+signature as abs / ato so gateway init hooks call all of them with the
+identical pattern.
+
+```python
+from apra_mcp import server as apra_srv
+await apra_srv.prewarm_curated(max_concurrency=2, log=print)
+```
+
+CLI:
+```
+apra-mcp --warmup [--warmup-concurrency 2] [--warmup-only ADI_KEY_STATS,...]
+```
+
+304 unit tests pass.
+
 ## [0.8.18] - 2026-05-18
 
 ### Improved — year-range hint instead of misleading fuzzy match
