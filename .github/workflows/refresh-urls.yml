@@ -41,7 +41,7 @@ jobs:
 
       - name: Open PR if URLs changed
         if: steps.scrape.outputs.scrape_failed != 'true'
-        uses: peter-evans/create-pull-request@v6
+        uses: peter-evans/create-pull-request@v8
         with:
           commit-message: "chore(seed): refresh URLs from APRA landing pages"
           title: "chore(seed): refresh URLs from APRA landing pages"
