@@ -1,15 +1,21 @@
 {
   "$schema": "https://github.com/Bigred97/apra-mcp/blob/main/docs/seed_urls.schema.json",
   "generated_at": "2026-05-12",
-  "refreshed_at": "2026-05-12",
-  "comment": "Last-known-good XLSX URLs for each curated dataset. Refreshed by .github/workflows/refresh-urls.yml — open a PR if APRA publishes a new quarter and the discovery layer can't find it.",
+  "refreshed_at": "2026-05-18",
+  "comment": "Last-known-good XLSX URLs for each curated dataset. Refreshed by .github/workflows/refresh-urls.yml \u2014 open a PR if APRA publishes a new quarter and the discovery layer can't find it.",
   "urls": {
     "ADI_KEY_STATS": "https://www.apra.gov.au/sites/default/files/2026-03/Authorised%20deposit-taking%20institution%20centralised%20publication%20-%20March%202013%20to%20December%202025.xlsx",
+    "ADI_PERFORMANCE": "https://www.apra.gov.au/sites/default/files/2026-03/Quarterly%20authorised%20deposit-taking%20institution%20performance-September%202004%20to%20December%202025.xlsx",
+    "ADI_PROPERTY_EXPOSURES": "https://www.apra.gov.au/sites/default/files/2026-03/Quarterly%20authorised%20deposit-taking%20institution%20property%20exposures%20statistics%20December%202025.xlsx",
     "ADI_RISK_WEIGHTED_ASSETS": "https://www.apra.gov.au/sites/default/files/2026-03/Authorised%20deposit-taking%20institution%20centralised%20publication%20-%20March%202013%20to%20December%202025.xlsx",
-    "SUPER_FUND_LEVEL": "https://www.apra.gov.au/sites/default/files/2026-03/Quarterly%20Superannuation%20Fund%20Statistics%20December%202025.xlsx",
     "INSURANCE_GENERAL": "https://www.apra.gov.au/sites/default/files/2026-02/Quarterly%20general%20insurance%20performance%20statistics%20database%20September%202023%20to%20December%202025.xlsx",
     "INSURANCE_GENERAL_HISTORICAL": "https://www.apra.gov.au/sites/default/files/2025-06/Quarterly%20general%20insurance%20performance%20statistics%20database%20%28historical%20data%29%20December%202002%20to%20June%202023.xlsx",
+    "INSURANCE_HEALTH": "https://www.apra.gov.au/sites/default/files/2026-02/Quarterly%20private%20health%20insurance%20performance%20statistics%20database%20-%20September%202023%20to%20December%202025.xlsx",
     "LIFE_INSURANCE": "https://www.apra.gov.au/sites/default/files/2026-03/Quarterly%20life%20insurance%20performance%20statistics%20database%20September%202023%20to%20December%202025%20%282%29.xlsx",
-    "LIFE_INSURANCE_HISTORICAL": "https://www.apra.gov.au/sites/default/files/2025-06/Quarterly%20Life%20Insurance%20Performance%20Statistics%20Database%20%28historical%20data%29%20June%202008%20to%20June%202023.xlsx"
+    "LIFE_INSURANCE_HISTORICAL": "https://www.apra.gov.au/sites/default/files/2025-06/Quarterly%20Life%20Insurance%20Performance%20Statistics%20Database%20%28historical%20data%29%20June%202008%20to%20June%202023.xlsx",
+    "MONTHLY_BANKING_STATS": "https://www.apra.gov.au/sites/default/files/2026-04/Monthly%20authorised%20deposit-taking%20institution%20statistics%20March%202026.xlsx",
+    "MYSUPER_PRODUCTS": "https://www.apra.gov.au/sites/default/files/2025-12/Annual%20MySuper%20statistics%20backseries%20June%202014%20to%20June%202025.xlsx",
+    "QUARTERLY_SUPER_PERFORMANCE": "https://www.apra.gov.au/sites/default/files/2026-02/Quarterly%20superannuation%20performance%20statistics%20-%20December%202004%20to%20December%202025.xlsx",
+    "SUPER_FUND_LEVEL": "https://www.apra.gov.au/sites/default/files/2026-03/Quarterly%20Superannuation%20Fund%20Statistics%20December%202025.xlsx"
   }
 }
