@@ -9,6 +9,8 @@
 
 **MCP server for Australian Prudential Regulation Authority statistics.** Plain-English access to per-bank capital ratios, fund-by-fund superannuation, and post-AASB17 life + general insurance — every prudentially-regulated entity in Australia, every quarter, from a single `uvx` command.
 
+> **Hosted access?** For cross-source queries, webhooks, an always-on REST API, and a uniform response envelope across all 9 sources, see **[ausdata.io](https://ausdata.io)** — free tier available (500 calls/mo, no card).
+
 ```text
 "What's CBA's CET1 ratio?"
 "Which super fund has the most members?"
