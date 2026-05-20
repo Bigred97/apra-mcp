@@ -1,5 +1,7 @@
 # apra-mcp
 
+mcp-name: io.ausdata/apra-mcp
+
 [![PyPI](https://img.shields.io/pypi/v/apra-mcp.svg)](https://pypi.org/project/apra-mcp/)
 [![Python](https://img.shields.io/pypi/pyversions/apra-mcp.svg)](https://pypi.org/project/apra-mcp/)
 [![License](https://img.shields.io/pypi/l/apra-mcp.svg)](https://github.com/Bigred97/apra-mcp/blob/main/LICENSE)
