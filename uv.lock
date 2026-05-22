@@ -51,7 +51,7 @@ wheels = [
 
 [[package]]
 name = "apra-mcp"
-version = "0.8.20"
+version = "0.8.22"
 source = { editable = "." }
 dependencies = [
     { name = "aiosqlite" },

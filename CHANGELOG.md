@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.22] — 2026-05-21
+
+### Changed — enforce ASCENDING record ordering (portfolio convention)
+
+Per the new binding portfolio convention (see top-level CLAUDE.md),
+`DataResponse.records` are now guaranteed **ascending by period** (oldest
+first, newest last) so consumers can rely on `records[-1]` being the most
+recent observation. `build_response` stable-sorts records by period before
+unit/limit/format handling, so records, series, and csv are all chronological.
+
+MONTHLY_BANKING_STATS previously emitted descending; this aligns it with the
+rest of the portfolio. APRA periods are ISO quarter-end dates so lexicographic
+sort is chronological. Stable sort keeps each measure's series ascending.
+
 ## [0.8.21] — 2026-05-21
 
 ### Added

@@ -31,6 +31,25 @@ def test_adi_key_stats_response_shape(adi_key_stats_xlsx):
         assert r.dimensions["sector"] == "Major banks"
 
 
+def test_records_ascending_by_period(insurance_general_xlsx):
+    """Portfolio convention (../CLAUDE.md): records MUST be ascending by
+    period (oldest first, newest last) so consumers can rely on records[-1]
+    being the most recent observation. build_response sorts unconditionally,
+    so whatever the source row order, the output periods must be non-decreasing."""
+    cd = curated.get("INSURANCE_GENERAL")
+    df = _parse(cd, insurance_general_xlsx)
+    resp = build_response(
+        cd=cd, df=df, filters={}, measures=None,
+        start_period=None, end_period=None, fmt="records", user_query={},
+    )
+    periods = [r.period for r in resp.records if r.period]
+    assert periods == sorted(periods), (
+        f"records must be ascending by period; got {periods[:5]}...{periods[-3:]}"
+    )
+    if len(periods) >= 2:
+        assert periods[-1] == max(periods), "records[-1] must be the most recent period"
+
+
 def test_adi_filter_by_alias_resolves(adi_key_stats_xlsx):
     cd = curated.get("ADI_KEY_STATS")
     df = _parse(cd, adi_key_stats_xlsx)

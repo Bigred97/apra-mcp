@@ -594,6 +594,13 @@ def build_response(
                 obs.sort(key=lambda o: o.period or "")
                 records.extend(obs[-last_n:])
 
+    # Portfolio convention (../CLAUDE.md): records MUST be ASCENDING by period
+    # (oldest first, newest last) so consumers can rely on records[-1] being
+    # the most recent observation. Stable sort keeps each measure's series
+    # ascending; null-period rows (none expected here) sort last. APRA periods
+    # are ISO quarter-end dates (2025-12-31), so lexicographic = chronological.
+    records.sort(key=lambda r: (r.period is None, r.period or ""))
+
     response_unit: str | None = None
     if records:
         units = {r.unit for r in records if r.unit}
