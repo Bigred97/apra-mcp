@@ -1,10 +1,18 @@
 name: refresh-seed-urls
 
 # Daily scrape of every APRA landing page in apra-mcp's curated set.
-# - When the scraped URLs differ from data/seed_urls.json, opens a PR.
-# - When any URL returns non-2xx, opens a GitHub issue.
+# - When the scraped URLs differ from data/seed_urls.json, commits the
+#   refresh directly to main (low-risk auto-data; the seed file is just
+#   the latest APRA download URLs, generated content).
+# - When any URL returns non-2xx, the run fails (alerts via the workflow's
+#   normal failure email).
 # Effect: even users on a months-old pip install stay current for weeks
 # because new wheels carry the refreshed seed.
+#
+# 2026-05-27: switched from peter-evans/create-pull-request to a direct
+# push because the repo's "Actions cannot create PRs" setting (Path-A
+# private repo default) blocked the PR step every day, flooding the
+# notification inbox without ever updating the seed.
 
 on:
   schedule:
@@ -13,8 +21,6 @@ on:
 
 permissions:
   contents: write
-  pull-requests: write
-  issues: write
 
 jobs:
   refresh:
@@ -39,18 +45,15 @@ jobs:
           uv run python scripts/refresh_seed.py > seed_diff.txt 2>&1 || echo "scrape_failed=true" >> $GITHUB_OUTPUT
           cat seed_diff.txt
 
-      - name: Open PR if URLs changed
+      - name: Commit seed refresh directly to main
         if: steps.scrape.outputs.scrape_failed != 'true'
-        uses: peter-evans/create-pull-request@v6
-        with:
-          commit-message: "chore(seed): refresh URLs from APRA landing pages"
-          title: "chore(seed): refresh URLs from APRA landing pages"
-          body: |
-            Automated PR from `.github/workflows/refresh-urls.yml`.
-
-            ```
-            ${{ steps.scrape.outputs.diff }}
-            ```
-          branch: refresh-seed-urls
-          delete-branch: true
-          add-paths: src/apra_mcp/data/seed_urls.json
+        run: |
+          if git diff --quiet -- src/apra_mcp/data/seed_urls.json; then
+            echo "no changes — nothing to commit"
+            exit 0
+          fi
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/apra_mcp/data/seed_urls.json
+          git commit -m "chore(seed): refresh URLs from APRA landing pages [skip ci]"
+          git push origin HEAD:main
