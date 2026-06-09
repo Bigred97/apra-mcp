@@ -6,7 +6,7 @@ agent that calls multiple Australian government MCPs gets a uniform envelope.
 APRA-specific differences:
 - attribution names APRA and CC-BY 3.0 AU per APRA's licence (same as the
   data.gov.au mirrored datasets used by ato-mcp).
-- DataResponse.source defaults to "Australian Prudential Regulation Authority"
+- DataResponse.source defaults to "Australian Prudential Regulation Authority (APRA)"
 - DataResponse.apra_url points back at the APRA landing page
 - DataResponse.download_url surfaces the actual XLSX URL used (so callers can
   verify provenance — the discovery layer may have resolved to a different URL
@@ -104,7 +104,7 @@ class DataResponse(BaseModel):
     row_count: int = 0
     records: list[Any] = Field(default_factory=list)
     csv: str | None = None
-    source: str = "Australian Prudential Regulation Authority"
+    source: str = "Australian Prudential Regulation Authority (APRA)"
     attribution: str = _APRA_ATTRIBUTION
     retrieved_at: datetime
     source_url: str = Field(
