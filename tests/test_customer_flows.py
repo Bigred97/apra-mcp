@@ -138,7 +138,7 @@ async def test_flow_response_envelope_consistent_across_datasets():
         r = await server.get_data(did, measures=None)
         # Every response carries the same top-level fields
         assert r.dataset_id == did
-        assert r.source == "Australian Prudential Regulation Authority"
+        assert r.source == "Australian Prudential Regulation Authority (APRA)"
         assert "Attribution 3.0 Australia" in r.attribution
         assert r.apra_url.startswith("https://www.apra.gov.au/")
         assert r.download_url is not None

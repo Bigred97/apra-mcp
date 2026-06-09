@@ -22,7 +22,7 @@ def test_adi_key_stats_response_shape(adi_key_stats_xlsx):
         start_period=None, end_period=None, fmt="records", user_query={},
     )
     assert resp.dataset_id == "ADI_KEY_STATS"
-    assert resp.source == "Australian Prudential Regulation Authority"
+    assert resp.source == "Australian Prudential Regulation Authority (APRA)"
     assert "Attribution 3.0 Australia" in resp.attribution
     assert resp.row_count > 0
     # Every record carries CBA institution + Major banks sector
