@@ -23,7 +23,7 @@ def test_read_adi_rwa(adi_rwa_xlsx):
 
 
 def test_read_super_fund_level(super_fund_level_xlsx):
-    df = read_xlsx(super_fund_level_xlsx, sheet="Table 1", header_row=4, data_start_row=7)
+    df = read_xlsx(super_fund_level_xlsx, sheet="Table 1", header_row=5, data_start_row=8)
     assert "Fund name" in df.columns
     assert "ABN" in df.columns
     assert len(df) > 0
