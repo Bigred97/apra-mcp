@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.24] — 2026-06-27
+
+### Fixed
+
+- **SUPER_FUND_LEVEL** repointed to APRA's current file and the parser realigned. APRA published the March 2026 quarter (removing the December 2025 file, whose URL now 404s) and shifted the Table 1 layout down one row: a new "Member account status" group-header row plus a single-letter column-code row push the real headers from row 4 to row 5 and the first data row from row 7 to row 8. This left the dataset returning HTTP 400 ("expected columns ... not in the parsed table"). Updated `download_url` (and `seed_urls.json`) to the March 2026 file, `header_row` 4→5, `data_start_row` 7→8, and the `fund_type` dimension value `PUBLIC SECTOR`→`PUBLIC_SECTOR` (APRA now emits the underscored form). All 21 source columns still map; live-verified 72 funds parse (first: AMG Super, period 2026-03-31). Test fixture + `test_read_super_fund_level` updated to the new row layout.
+
 ## [0.8.23] — 2026-06-09
 
 ### Changed

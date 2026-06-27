@@ -12,11 +12,11 @@ description: |
 period_coverage: latest quarter snapshot
 update_frequency: quarterly
 source_url: https://www.apra.gov.au/quarterly-fund-level-statistics
-download_url: https://www.apra.gov.au/sites/default/files/2026-03/Quarterly%20Superannuation%20Fund%20Statistics%20December%202025.xlsx
+download_url: https://www.apra.gov.au/system/files/2026-06/Quarterly%20Superannuation%20Fund%20Statistics%20March%202026.xlsx
 format: xlsx
 sheet: Table 1
-header_row: 4
-data_start_row: 7
+header_row: 5
+data_start_row: 8
 layout: wide
 cache_kind: data
 period_column: Period
@@ -173,7 +173,7 @@ dimension_values:
   fund_type:
     corporate: CORPORATE
     industry: INDUSTRY
-    public_sector: PUBLIC SECTOR
+    public_sector: PUBLIC_SECTOR
     retail: RETAIL
     small: SMALL FUND
   rse_classification:
