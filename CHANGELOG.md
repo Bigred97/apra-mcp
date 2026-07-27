@@ -5,6 +5,58 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.26] — 2026-07-27
+
+### Fixed
+
+- **`latest()` silent data loss on wide-format datasets** — the wide-format
+  branch of the `last_n` handling in `shaping.py` grouped tail-N slicing by
+  `measure` only, with no entity dimension in the key. For entity-level
+  datasets like `ADI_KEY_STATS` (20+ ADIs × 7 measures), every institution's
+  observations pooled into one list per measure, so `obs[-last_n:]` silently
+  kept a single arbitrary bank's numbers presented as the whole sector —
+  `latest("ADI_KEY_STATS")` with no filters returned 7 plausible-looking rows
+  (one per measure) with every other institution gone, no error, no
+  truncation flag (corroborated by the 0.8.15 entry further below recording
+  `latest(ADI_KEY_STATS) -> 7 rows`). Fixed to match the semantics already
+  used by the long-format branch: "latest" now means "all rows at the most
+  recent period(s) per measure", not "tail N per measure" — every
+  institution at the latest quarter is now returned. Rows with no period are
+  kept as-is rather than dropped (a period-based filter can't place them).
+  Added regression test
+  `test_latest_adi_key_stats_unfiltered_returns_all_institutions` asserting
+  more than one distinct institution is present in an unfiltered
+  `latest("ADI_KEY_STATS")` call.
+
+- **Follow-up: `latest()` truncation returned one arbitrary measure instead
+  of one arbitrary institution** — the fix above (keep every institution at
+  the latest period) was correct, but `records` were built measure-major
+  (all institutions for measure A, then all for measure B, ...), and because
+  every survivor shares the same latest period the subsequent
+  `records.sort(key=lambda r: (r.period is None, r.period or ""))` is a
+  stable sort that left that measure-major order intact. The `limit`
+  head-slice further down then returned `limit` rows of a single measure —
+  confirmed on `ADI_KEY_STATS` with no filters: `row_count=50`,
+  `truncated_at=532`, every row `measure="cet1_capital"`, every other
+  measure gone. So `latest()` went from "one arbitrary institution" to "one
+  arbitrary measure". Fixed by sorting `(period, entity, measure)` before
+  truncation, where `entity` is the dataset's identity dimension
+  (`institution` / `fund_name` / `product_name` / the melted
+  `transposed_entity_alias`, auto-detected via the new
+  `_identity_dimension_key()` — the first non-period dimension column
+  declared in the curated YAML, which every curated dataset already puts
+  first). A `limit` head-slice now returns complete institutions (all of
+  their measures) instead of one measure spread across many institutions;
+  datasets with no identifiable entity dimension fall back to a plain
+  `(period, measure)` sort. `truncated_at` still reports the pre-truncation
+  count. Added regression test
+  `test_latest_adi_key_stats_truncation_is_entity_complete`, which fails
+  against the pre-fix code (asserts >1 distinct measure in a truncated,
+  unfiltered `latest("ADI_KEY_STATS", limit=21)` slice, >1 distinct
+  institution, that every returned institution carries its complete measure
+  set vs. the untruncated ground truth, and that `truncated_at` equals the
+  pre-truncation row count).
+
 ## [0.8.25] — 2026-06-27
 
 ### Fixed

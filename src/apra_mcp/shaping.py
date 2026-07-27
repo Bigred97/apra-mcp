@@ -520,6 +520,34 @@ def records_to_series(records: list[Observation]) -> list[dict[str, Any]]:
     return list(groups.values())
 
 
+def _identity_dimension_key(cd: CuratedDataset) -> str | None:
+    """Best-guess "entity" dimension key for entity-complete truncation.
+
+    Curated YAMLs consistently declare the true row-identity dimension
+    (institution / fund_name / product_name / metric / ...) as the first
+    non-period entry under `columns:` — `shape_wide` carries that same key
+    through into each Observation's `dimensions` dict. Using positional
+    order (rather than an allowlist of well-known names like "institution")
+    keeps this correct for every curated dataset, including transposed-layout
+    ones whose melted identity column (`transposed_entity_alias`, e.g.
+    "metric"/"property_type"/"fund_type") is likewise declared first.
+
+    Returns None when a dataset has no dimension columns beyond the period
+    itself — callers should fall back to (period, measure) ordering, since
+    there is nothing else to group truncation by.
+    """
+    period_alias: str | None = None
+    if cd.period_column:
+        for c in cd.columns.values():
+            if c.source_column == cd.period_column:
+                period_alias = c.key
+                break
+    for c in dimension_columns(cd):
+        if c.key != period_alias:
+            return c.key
+    return None
+
+
 def build_response(
     *,
     cd: CuratedDataset,
@@ -585,21 +613,60 @@ def build_response(
                 target_periods = set(periods_sorted[-last_n:])
                 records = [r for r in records if r.period in target_periods]
         else:
-            # Wide-format: tail-N per measure (sorted by period asc).
+            # Wide-format: keep ALL records (every entity/institution) at the
+            # most recent period(s) per measure. Grouping by measure alone
+            # (without also slicing by period) would pool every institution's
+            # observations into one list and obs[-last_n:] would silently
+            # keep a single arbitrary institution — "latest" must mean "all
+            # rows at the most recent period(s)", matching the long-format
+            # branch above, not "tail N per measure".
+            #
+            # This loop only decides WHICH periods survive per measure; it
+            # does NOT decide truncation order or grouping. Because every
+            # surviving record here shares the same latest period(s), records
+            # are built measure-major (all of measure A's entities, then all
+            # of measure B's, ...). That is fine on its own — but a later
+            # `limit` head-slice would then return N rows of a single measure
+            # across many entities, not N complete entities. The entity-major
+            # sort in the ASCENDING-by-period step below (keyed on
+            # `_identity_dimension_key`) is what turns this into
+            # entity-complete groups before truncation runs.
             per_measure: dict[str, list[Observation]] = {}
+            no_period: list[Observation] = []
             for r in records:
-                per_measure.setdefault(r.measure or "", []).append(r)
-            records = []
+                if r.period is None:
+                    # Can't determine "latest" without a period — keep these
+                    # rather than silently dropping them.
+                    no_period.append(r)
+                else:
+                    per_measure.setdefault(r.measure or "", []).append(r)
+            records = list(no_period)
             for k, obs in per_measure.items():
-                obs.sort(key=lambda o: o.period or "")
-                records.extend(obs[-last_n:])
+                periods_sorted = sorted({o.period for o in obs})
+                target_periods = set(periods_sorted[-last_n:])
+                records.extend([o for o in obs if o.period in target_periods])
 
     # Portfolio convention (../CLAUDE.md): records MUST be ASCENDING by period
     # (oldest first, newest last) so consumers can rely on records[-1] being
-    # the most recent observation. Stable sort keeps each measure's series
-    # ascending; null-period rows (none expected here) sort last. APRA periods
-    # are ISO quarter-end dates (2025-12-31), so lexicographic = chronological.
-    records.sort(key=lambda r: (r.period is None, r.period or ""))
+    # the most recent observation. null-period rows (none expected here) sort
+    # last. APRA periods are ISO quarter-end dates (2025-12-31), so
+    # lexicographic = chronological.
+    #
+    # Secondary key: entity, then measure. Within a tied period (the common
+    # case for latest()/last_n, where every survivor shares the same latest
+    # period) this makes the row order entity-major instead of measure-major,
+    # so a downstream `limit` head-slice returns complete entities (all of
+    # institution A's measures, then all of institution B's, ...) rather than
+    # N rows of a single measure spread across many entities. When the
+    # dataset has no identifiable entity dimension (`_identity_dimension_key`
+    # returns None), this degrades to a plain (period, measure) sort.
+    entity_key = _identity_dimension_key(cd)
+
+    def _record_sort_key(r: Observation) -> tuple[bool, str, str, str]:
+        entity_val = str(r.dimensions.get(entity_key, "")) if entity_key else ""
+        return (r.period is None, r.period or "", entity_val, r.measure or "")
+
+    records.sort(key=_record_sort_key)
 
     response_unit: str | None = None
     if records:

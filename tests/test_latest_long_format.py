@@ -97,6 +97,92 @@ async def test_latest_adi_key_stats_returns_per_measure():
 
 
 @pytest.mark.asyncio
+async def test_latest_adi_key_stats_unfiltered_returns_all_institutions():
+    """Regression: latest("ADI_KEY_STATS") with NO filters must return every
+    institution at the latest period, not one arbitrary bank's numbers
+    presented as the whole sector.
+
+    Grouping wide-format tail-N only by `measure` (without also slicing by
+    period) pools every institution's observations into a single list per
+    measure, so obs[-last_n:] silently keeps just one institution — this is
+    the exact bug corroborated by the CHANGELOG 0.8.15 entry recording
+    latest(ADI_KEY_STATS) -> 7 rows (one per measure, one bank total).
+    """
+    r = await server.latest("ADI_KEY_STATS")
+    institutions = {
+        rec.dimensions.get("institution") for rec in r.records if rec.dimensions.get("institution")
+    }
+    assert len(institutions) > 1, (
+        f"expected more than one distinct institution, got {institutions!r} "
+        f"(row_count={r.row_count})"
+    )
+
+
+@pytest.mark.asyncio
+async def test_latest_adi_key_stats_truncation_is_entity_complete():
+    """Regression: truncating latest()'s wide-format response must yield
+    COMPLETE entities, not `limit` rows of a single measure.
+
+    The selection logic above (all institutions at the latest period) is
+    correct on its own, but it builds `records` measure-major, and because
+    every survivor shares the same latest period the old plain (period,)
+    sort was a stable no-op that left that measure-major order intact. A
+    `limit` head-slice then returned e.g. row_count=50, truncated_at=532,
+    every single row the SAME measure ("cet1_capital") — "latest" went from
+    "one arbitrary institution" (the original bug) to "one arbitrary
+    measure" (this one). The fix sorts (period, entity, measure) so a
+    head-slice returns whole institutions with all of their measures.
+    """
+    # Ground truth: the untruncated response (fixture is well under 10,000
+    # rows), used to know each institution's REAL measure set — some
+    # institutions may legitimately be missing a measure or two in the
+    # source data, so we compare against ground truth rather than assuming
+    # every institution has the full dataset-wide measure catalog.
+    full = await server.latest("ADI_KEY_STATS", limit=10000)
+    assert full.truncated_at is None, "fixture must fit under limit=10000 for this test to be valid"
+    pre_truncation_count = full.row_count
+
+    full_by_institution: dict[str, set[str | None]] = {}
+    for rec in full.records:
+        inst = rec.dimensions.get("institution")
+        if inst:
+            full_by_institution.setdefault(inst, set()).add(rec.measure)
+
+    # limit=21 is smaller than the full result (~500+ rows) and is an exact
+    # multiple of ADI_KEY_STATS's 7 measures, so a correct entity-major sort
+    # returns exactly 3 complete institutions.
+    r = await server.latest("ADI_KEY_STATS", limit=21)
+
+    measures = {rec.measure for rec in r.records}
+    institutions = {
+        rec.dimensions.get("institution") for rec in r.records if rec.dimensions.get("institution")
+    }
+    assert len(measures) > 1, (
+        f"expected more than one distinct measure in the truncated slice, got {measures!r}"
+    )
+    assert len(institutions) > 1, (
+        f"expected more than one distinct institution in the truncated slice, got {institutions!r}"
+    )
+
+    by_institution: dict[str, set[str | None]] = {}
+    for rec in r.records:
+        inst = rec.dimensions.get("institution")
+        if inst:
+            by_institution.setdefault(inst, set()).add(rec.measure)
+    for inst, ms in by_institution.items():
+        assert ms == full_by_institution[inst], (
+            f"{inst} has an incomplete measure set in the truncated slice: "
+            f"got {ms}, expected the full set {full_by_institution[inst]}"
+        )
+
+    assert r.truncated_at == pre_truncation_count, (
+        f"truncated_at must equal the pre-truncation row count "
+        f"({pre_truncation_count}), got {r.truncated_at}"
+    )
+    assert r.row_count == 21
+
+
+@pytest.mark.asyncio
 async def test_latest_with_data_item_filter():
     """Latest with a filter on data_item should narrow further."""
     r = await server.latest(
