@@ -27,3 +27,4 @@ htmlcov/
 .coverage.*
 *.swo
 .apra-mcp-cache/
+graphify-out/

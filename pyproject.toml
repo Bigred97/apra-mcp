@@ -21,6 +21,7 @@ classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
     "Intended Audience :: Financial and Insurance Industry",
+    "Intended Audience :: Science/Research",
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.11",
@@ -54,8 +55,8 @@ dev = [
 apra-mcp = "apra_mcp.server:main"
 
 [project.urls]
-Homepage = "https://github.com/Bigred97/apra-mcp"
-Documentation = "https://github.com/Bigred97/apra-mcp#readme"
+Homepage = "https://ausdata.io"
+Documentation = "https://ausdata.io/sources/apra/"
 Repository = "https://github.com/Bigred97/apra-mcp"
 Issues = "https://github.com/Bigred97/apra-mcp/issues"
 Changelog = "https://github.com/Bigred97/apra-mcp/blob/main/CHANGELOG.md"

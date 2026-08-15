@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.8.27 (2026-08-15) — latest() multi-institution correctness + filters accepts JSON-string over MCP transport
+
+### Changed
+
+- latest() multi-institution correctness + filters accepts JSON-string over MCP transport
+
 All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
