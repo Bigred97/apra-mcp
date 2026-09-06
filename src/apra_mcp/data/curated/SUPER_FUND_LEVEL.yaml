@@ -6,10 +6,22 @@ description: |
   latest reporting quarter — member counts (active + inactive), benefits,
   median balance, median member age, and licensee structure metadata.
 
-  This file is a SNAPSHOT of the latest quarter only. Inaugural release was
-  June 2024; historical depth would need to be built by accumulating snapshots.
+  This dataset reads APRA's EXCEL version, which carries the current
+  reporting quarter only (verified 2026-08-16: Table 1 = 72 funds, all at
+  2026-03-31). The inaugural release was June 2024.
+
+  APRA DOES publish fund-level history — do NOT accumulate snapshots to
+  build it. The "database version" ZIP on the same landing page ships four
+  CSVs (table1-table4) with, in APRA's words, "additional back series data
+  where the current period statistics are provided in the Excel version".
+  Verified coverage 2026-08-16: 20 quarters, June 2021 → March 2026, 145
+  RSEs (table4 is shorter: 16 quarters from June 2022, 123 RSEs) — i.e. the
+  back series predates the June 2024 inaugural publication by three years.
+  Serving that history needs a ZIP+CSV fetch path this dataset does not yet
+  have; until then this is a current-quarter view by configuration, not
+  because the source lacks history.
   Source: APRA Quarterly Superannuation Fund-Level Statistics.
-period_coverage: latest quarter snapshot
+period_coverage: "current quarter only as configured (Excel version); APRA publishes June 2021 → current in the database-version ZIP"
 update_frequency: quarterly
 source_url: https://www.apra.gov.au/quarterly-fund-level-statistics
 download_url: https://www.apra.gov.au/system/files/2026-06/Quarterly%20Superannuation%20Fund%20Statistics%20March%202026.xlsx

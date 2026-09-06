@@ -26,7 +26,7 @@ import pandas as pd
 from fastmcp import FastMCP
 from pydantic import Field
 
-from . import catalog, curated, parquet_cache
+from . import __version__, catalog, curated, parquet_cache
 from .client import APRAAPIError, APRAClient, get_stale_signal, reset_stale_signal
 from .discovery import DiscoverySpec, resolve_for_dataset
 from .models import (
@@ -51,7 +51,7 @@ _DATASET_ID_PATTERN = re.compile(r"^[A-Z][A-Z0-9_]*$")
 _PERIOD_PATTERN = re.compile(r"^[0-9A-Za-z-]{4,10}$")
 _VALID_FORMATS = {"records", "series", "csv"}
 
-mcp = FastMCP("apra-mcp")
+mcp = FastMCP("apra-mcp", version=__version__)
 
 # Per-thread client cache. The gateway runs MCP tools from worker threads,
 # each with its own asyncio event loop. A module-level singleton holding httpx
@@ -315,7 +315,7 @@ async def _fetch_and_parse(
     client = await _get_client()
     url, stale, stale_reason = await _resolve_download_url(cd, client)
     try:
-        body = await client.fetch_resource(url, kind="data")
+        body = await client.fetch_resource(url, kind="data", dataset_id=cd.id)
     except APRAAPIError as e:
         # Scrub any internal source URLs that the upstream error message may
         # have substituted in (`apra.gov.au/sites/default/files/...`) before
@@ -971,8 +971,12 @@ async def top_n(
             "'top' returns largest values (default), 'bottom' returns smallest."
         )
 
+    # 0.8.28: rank within the LATEST period only. With last_n=None a
+    # multi-period dataset (MYSUPER_PRODUCTS: ~90 products x 11 years) ranked
+    # every product-year together, so "top 10" was one or two dominant
+    # products' several years. Snapshot datasets are unaffected.
     full = await _get_data_impl(
-        dataset_id, filters, measure, None, None, "records", last_n=None,
+        dataset_id, filters, measure, None, None, "records", last_n=1,
     )
     valid = [r for r in full.records if isinstance(r, Observation) and r.value is not None]
     valid.sort(key=lambda r: r.value if r.value is not None else 0.0, reverse=(direction == "top"))

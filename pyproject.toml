@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "apra-mcp"
-version = "0.8.27"
+version = "0.8.28"
 description = "MCP server for Australian Prudential Regulation Authority statistics. Plain-English access to bank capital ratios, superannuation fund-level data, and life + general insurance — every prudentially-regulated entity in Australia, every quarter, with auto-discovery and a CC-BY 3.0 AU attribution contract."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -74,6 +74,15 @@ pythonpath = ["src"]
 
 [tool.ruff]
 line-length = 100
+
+[tool.ruff.lint]
+# Pinned to the classic ruff default rule set. CI runs `uvx "ruff>=0.5"`, i.e.
+# always the newest ruff, and a 2026 release widened the DEFAULT selection
+# (BLE001, TRY004, S110, PYI, PERF, FURB, ...) so the lint job went red on
+# an unchanged tree (2026-08-16 onward). An explicit select keeps the gate
+# stable regardless of the ruff version; widen it deliberately, not by
+# upgrade. (asic-mcp pins its own explicit list and stayed green.)
+select = ["E4", "E7", "E9", "F"]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["E741", "F841", "F401"]

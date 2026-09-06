@@ -268,6 +268,60 @@ async def test_raises_when_no_stale_cache_to_fall_back_to(fresh_cache: Cache):
             await client.fetch_resource(url)
 
 
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_stale_fallback_uses_dataset_key_when_url_rotated(tmp_path: Path):
+    """Quarterly URL rotation: new URL 404s, but last quarter's bytes were
+    dual-written under dataset:<ID>. Stale fallback must recover them.
+    """
+    from apra_mcp.client import dataset_cache_key, get_stale_signal, reset_stale_signal
+
+    old_url = "https://www.apra.gov.au/sites/default/files/old-q1.xlsx"
+    new_url = "https://www.apra.gov.au/sites/default/files/new-q2.xlsx"
+    db_path = tmp_path / "cache.db"
+    dataset_id = "ADI_KEY_STATS"
+
+    # Simulate a prior successful fetch that dual-wrote under dataset:<ID>
+    # (and under the old URL). Age past the 7-day data TTL.
+    await _prime_stale_cache(db_path, old_url, b"PKZIP-q1-bytes", age_hours=24 * 8)
+    await _prime_stale_cache(
+        db_path, dataset_cache_key(dataset_id), b"PKZIP-q1-bytes", age_hours=24 * 8
+    )
+
+    reset_stale_signal()
+    respx.get(new_url).mock(return_value=httpx.Response(404, text="Not Found"))
+    cache = Cache(db_path)
+    async with APRAClient(cache=cache) as client:
+        body = await client.fetch_resource(new_url, dataset_id=dataset_id)
+    assert body == b"PKZIP-q1-bytes"
+    stale, reason = get_stale_signal()
+    assert stale is True
+    assert reason and "404" in reason
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_successful_fetch_dual_writes_dataset_cache_key(tmp_path: Path):
+    """A live data fetch with dataset_id must store bytes under dataset:<ID>
+    as well as the URL, so a later rotation can fall back.
+    """
+    from apra_mcp.client import dataset_cache_key
+
+    url = "https://www.apra.gov.au/file.xlsx"
+    db_path = tmp_path / "cache.db"
+    respx.get(url).mock(return_value=httpx.Response(200, content=b"PKZIP-live"))
+    cache = Cache(db_path)
+    async with APRAClient(cache=cache) as client:
+        body = await client.fetch_resource(url, dataset_id="ADI_PERFORMANCE")
+    assert body == b"PKZIP-live"
+    by_url = await cache.get_stale(url)
+    by_ds = await cache.get_stale(dataset_cache_key("ADI_PERFORMANCE"))
+    assert by_url is not None and by_url[0] == b"PKZIP-live"
+    assert by_ds is not None and by_ds[0] == b"PKZIP-live"
+
+
 @pytest.mark.asyncio
 async def test_cache_get_stale_returns_payload_and_timestamp(tmp_path: Path):
     """Cache.get_stale() returns (payload, cached_at) regardless of TTL —

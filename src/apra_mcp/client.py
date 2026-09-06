@@ -76,6 +76,17 @@ def _is_apra_host(url: str) -> bool:
     return host in _ALLOWED_HOSTS
 
 
+
+
+def dataset_cache_key(dataset_id: str) -> str:
+    """Stable byte-cache key independent of the quarterly-rotated download URL.
+
+    Dual-written on successful data fetches; used as stale-fallback lookup
+    when the resolved URL has no cache row (URL rotated / 404'd).
+    """
+    return f"dataset:{dataset_id.strip().upper()}"
+
+
 class APRAClient:
     def __init__(
         self,
@@ -105,7 +116,7 @@ class APRAClient:
         await self.aclose()
 
     async def fetch_resource(
-        self, url: str, *, kind: CacheKind = "data"
+        self, url: str, *, kind: CacheKind = "data", dataset_id: str | None = None
     ) -> bytes:
         """Fetch a static XLSX file by URL. Cached. In-flight deduped.
 
@@ -113,6 +124,10 @@ class APRAClient:
         change between fetches within a quarter, and the byte-cache TTL of
         7 days already catches everything. For "landing" kind, see
         `fetch_landing_html`.
+
+        `dataset_id` (optional) dual-writes under `dataset:<id>` so a
+        rotated quarterly URL that 404s can still fall back to last
+        quarter via get_stale.
         """
         if not url.startswith(("http://", "https://")):
             raise APRAAPIError(f"Refusing to fetch non-http(s) URL: {url!r}")
@@ -121,7 +136,7 @@ class APRAClient:
                 f"Refusing to fetch off-host URL {url!r}. "
                 "apra-mcp only fetches from apra.gov.au."
             )
-        return await self._fetch_cached(url, kind=kind)
+        return await self._fetch_cached(url, kind=kind, dataset_id=dataset_id)
 
     async def fetch_landing_html(self, url: str) -> bytes:
         """Fetch an APRA landing page HTML with conditional-GET support.
@@ -187,7 +202,9 @@ class APRAClient:
         )
         return body
 
-    async def _fetch_cached(self, url: str, *, kind: CacheKind) -> bytes:
+    async def _fetch_cached(
+        self, url: str, *, kind: CacheKind, dataset_id: str | None = None
+    ) -> bytes:
         cached = await self.cache.get(url, ttl=TTL[kind])
         if cached is not None:
             return cached
@@ -214,6 +231,10 @@ class APRAClient:
                 # reasoning. Staleness is surfaced via the _stale_signal
                 # ContextVar and ends up in DataResponse.stale / stale_reason.
                 fallback = await self.cache.get_stale(url)
+                if fallback is None and dataset_id:
+                    fallback = await self.cache.get_stale(
+                        dataset_cache_key(dataset_id)
+                    )
                 if fallback is not None:
                     payload, cached_at = fallback
                     age_min = max(0, int((time.time() - cached_at) / 60))
@@ -241,6 +262,14 @@ class APRAClient:
                 etag=resp.headers.get("etag"),
                 last_modified=resp.headers.get("last-modified"),
             )
+            if dataset_id and kind == "data":
+                await self.cache.set(
+                    dataset_cache_key(dataset_id),
+                    resp.content,
+                    kind=kind,
+                    etag=resp.headers.get("etag"),
+                    last_modified=resp.headers.get("last-modified"),
+                )
             future.set_result(resp.content)
             return resp.content
         except BaseException as e:

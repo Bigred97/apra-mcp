@@ -466,13 +466,22 @@ def shape_wide(
             value = _safe_value(cell)
             if value is None:
                 continue
+            unit = mc.unit
+            # 0.8.28: a long-format value column can carry counts, ratios and
+            # dollars under one YAML unit; the curated unit_overrides map
+            # (dimension -> value -> unit) corrects the rows it names.
+            for dim_key, mapping in (cd.unit_overrides or {}).items():
+                dv = dim_vals.get(dim_key)
+                if dv is not None and str(dv) in mapping:
+                    unit = mapping[str(dv)]
+                    break
             records.append(
                 Observation(
                     period=period_val,
                     value=value,
                     measure=mk,
                     dimensions=dim_vals,
-                    unit=mc.unit,
+                    unit=unit,
                 )
             )
     return records

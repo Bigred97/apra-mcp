@@ -12,7 +12,7 @@ Each YAML under `data/curated/` describes one queryable table:
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from importlib import resources
 from pathlib import Path
 from typing import Literal
@@ -129,6 +129,9 @@ class CuratedDataset:
     search_keywords: tuple[str, ...] = ()
     metric_label_column: str | None = None
     unit_column: str | None = None
+    # 0.8.28: per-dimension-value unit overrides, e.g. {"metric": {"number_of_entities": "Number"}}
+    # for long-format sheets whose one value column mixes counts, ratios and dollars.
+    unit_overrides: dict[str, dict[str, str]] = field(default_factory=dict)
     discovery: CuratedDiscovery | None = None
     framework: CuratedFramework | None = None
     # Date columns: when the source has a 'Reporting Date' style column we
@@ -334,6 +337,10 @@ def _load_one(path: Path) -> CuratedDataset:
         search_keywords=tuple(raw.get("search_keywords") or ()),
         metric_label_column=raw.get("metric_label_column"),
         unit_column=raw.get("unit_column"),
+        unit_overrides={
+            str(dim): {str(k): str(v) for k, v in (vals or {}).items()}
+            for dim, vals in (raw.get("unit_overrides") or {}).items()
+        },
         discovery=_parse_discovery(raw.get("discovery")),
         framework=_parse_framework(raw.get("framework")),
         period_column=raw.get("period_column"),

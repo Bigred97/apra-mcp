@@ -16,10 +16,10 @@ description: |
 period_coverage: March 2004 → latest quarter
 update_frequency: quarterly
 source_url: https://www.apra.gov.au/quarterly-authorised-deposit-taking-institution-statistics
-download_url: https://www.apra.gov.au/sites/default/files/2026-03/Quarterly%20authorised%20deposit-taking%20institution%20property%20exposures%20statistics%20December%202025.xlsx
+download_url: https://www.apra.gov.au/system/files/2026-06/Quarterly%20authorised%20deposit-taking%20institution%20property%20exposures%20statistics%20March%202026.xlsx
 format: xlsx
 sheet: Tab 1a
-header_row: 7
+header_row: 4
 layout: transposed
 transposed_entity_alias: property_type
 period_column: "period"
@@ -63,11 +63,27 @@ columns:
   value_aud_million:
     source_column: "value"
     description: >
-      Value in AUD millions (for exposure amounts and specific provisions) or
-      a decimal ratio (for impaired-to-exposure and provision-related ratios).
+      Value in AUD millions for exposure amounts and provisions; decimal Ratio
+      for the "* to *" ratio rows; Number for "Number of entitiesa". See
+      unit_overrides — the shared value column must not stamp ratios as AUD millions.
     unit: AUD millions
     role: measure
     dtype: float
+# Confirmed from live Tab 1a (March 2026 sheet, 2026-09-06): most rows are AUD
+# millions, but the ratio block and entity count share the same value column.
+# Without overrides, ratio rows (e.g. 0.003) were stamped unit="AUD millions".
+unit_overrides:
+  property_type:
+    "Impaired assets to exposures": Ratio
+    "Specific provisions to exposures": Ratio
+    "Specific provisions to impaired exposures": Ratio
+    "Specific provisions and security held to impaired exposures": Ratio
+    "Non-performing to total exposures": Ratio
+    "Specific provisions to total exposures": Ratio
+    "Specific provisions to non-performing exposures": Ratio
+    "Specific provisions and security held to non-performing exposures": Ratio
+    "Number of entitiesa": Number
+    number_of_entities: Number
 dimension_values:
   property_type:
     permissive: true
@@ -83,3 +99,12 @@ dimension_values:
       total_actual: "Total commercial property exposures "
       impaired: "Impaired Commercial property exposures"
       specific_provisions: "Specific provisions"
+      impaired_assets_to_exposures: "Impaired assets to exposures"
+      specific_provisions_to_exposures: "Specific provisions to exposures"
+      specific_provisions_to_impaired: "Specific provisions to impaired exposures"
+      provisions_and_security_to_impaired: "Specific provisions and security held to impaired exposures"
+      non_performing_to_total: "Non-performing to total exposures"
+      specific_provisions_to_total: "Specific provisions to total exposures"
+      specific_provisions_to_non_performing: "Specific provisions to non-performing exposures"
+      provisions_and_security_to_non_performing: "Specific provisions and security held to non-performing exposures"
+      number_of_entities: "Number of entitiesa"

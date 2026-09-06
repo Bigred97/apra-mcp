@@ -14,6 +14,20 @@ import pytest
 from apra_mcp import server
 
 
+# ---------- server construction: FastMCP version must be the package's own ----------
+#
+# Regression guard: FastMCP(name=...) without an explicit version= kwarg
+# silently defaults `.version` to fastmcp's OWN library version (e.g.
+# "3.2.4") — which then leaks into serverInfo.version at the MCP initialize
+# handshake, mismatching the server_version field every DataResponse
+# already reports via importlib.metadata.
+
+def test_mcp_server_version_matches_package_version():
+    from importlib.metadata import version as _pkg_version
+
+    assert server.mcp.version == _pkg_version("apra-mcp")
+
+
 @pytest.mark.asyncio
 async def test_search_datasets_empty_query():
     with pytest.raises(ValueError, match="query is required"):
@@ -569,3 +583,100 @@ def test_no_mcp_tool_refs_in_error_strings():
         "Replace with transport-agnostic hints (e.g. 'See the valid-options list "
         f"for X').\n  {chr(10).join(offenders)}"
     )
+
+
+# ---------- 0.8.28 review fixes ----------
+
+@pytest.mark.asyncio
+async def test_top_n_ranks_within_the_latest_period(monkeypatch):
+    captured: dict = {}
+
+    async def _impl(dataset_id, filters, measures, start, end, fmt, **kw):
+        captured.update(kw)
+        raise RuntimeError("stop")
+
+    monkeypatch.setattr(server, "_get_data_impl", _impl)
+    with pytest.raises(RuntimeError):
+        await server.top_n("ADI_KEY_STATS", "cet1_ratio")
+    assert captured.get("last_n") == 1
+
+
+def test_adi_performance_entity_count_is_not_in_aud_millions():
+    from apra_mcp import curated
+
+    cd = curated.get("ADI_PERFORMANCE")
+    assert cd is not None
+    assert cd.unit_overrides["metric"]["number_of_entities"] == "Number"
+
+
+
+def test_adi_property_exposures_header_row_is_period_axis():
+    """Tab 1a period dates live on Excel row 4 (same convention as ADI_PERFORMANCE).
+
+    header_row=7 (Office row) made melt_transposed find zero period columns, so
+    latest()/get_data raised "expected columns ... property_type/period/value".
+    Confirmed against the March 2026 sheet on 2026-09-06.
+    """
+    from apra_mcp import curated
+
+    cd = curated.get("ADI_PROPERTY_EXPOSURES")
+    assert cd is not None
+    assert cd.header_row == 4
+    assert cd.layout == "transposed"
+
+
+def test_adi_property_exposures_ratio_rows_are_not_aud_millions():
+    """Ratio + entity-count rows share the AUD-millions value column; overrides
+    must stamp Ratio / Number. Labels confirmed from live Tab 1a (March 2026).
+    """
+    from apra_mcp import curated
+
+    cd = curated.get("ADI_PROPERTY_EXPOSURES")
+    assert cd is not None
+    overrides = cd.unit_overrides["property_type"]
+    assert overrides["Impaired assets to exposures"] == "Ratio"
+    assert overrides["Specific provisions to exposures"] == "Ratio"
+    assert overrides["Specific provisions to impaired exposures"] == "Ratio"
+    assert overrides["Specific provisions and security held to impaired exposures"] == "Ratio"
+    assert overrides["Non-performing to total exposures"] == "Ratio"
+    assert overrides["Specific provisions to total exposures"] == "Ratio"
+    assert overrides["Specific provisions to non-performing exposures"] == "Ratio"
+    assert overrides[
+        "Specific provisions and security held to non-performing exposures"
+    ] == "Ratio"
+    assert overrides["Number of entitiesa"] == "Number"
+
+
+def test_adi_property_exposures_shape_wide_applies_ratio_unit_override():
+    """End-to-end shaping: melted long rows get Ratio/Number, not AUD millions."""
+    import pandas as pd
+
+    from apra_mcp import curated
+    from apra_mcp.shaping import shape_wide
+
+    cd = curated.get("ADI_PROPERTY_EXPOSURES")
+    assert cd is not None
+    df = pd.DataFrame(
+        [
+            {
+                "property_type": "Total commercial property exposures ",
+                "period": "2026-03-31",
+                "value_aud_million": 487646.8,
+            },
+            {
+                "property_type": "Impaired assets to exposures",
+                "period": "2026-03-31",
+                "value_aud_million": 0.001,
+            },
+            {
+                "property_type": "Number of entitiesa",
+                "period": "2026-03-31",
+                "value_aud_million": 120.0,
+            },
+        ]
+    )
+    records = shape_wide(df, cd, ["value_aud_million"])
+    by_pt = {r.dimensions["property_type"]: r for r in records}
+    assert by_pt["Total commercial property exposures "].unit == "AUD millions"
+    assert by_pt["Impaired assets to exposures"].unit == "Ratio"
+    assert by_pt["Number of entitiesa"].unit == "Number"

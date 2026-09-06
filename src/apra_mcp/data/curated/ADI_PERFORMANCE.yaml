@@ -20,8 +20,13 @@ description: |
   tax, impaired assets, total assets, total liabilities, equity.
 
   For per-entity (CBA vs WBC vs NAB) capital and asset comparisons in the
-  latest quarter, use ADI_KEY_STATS. For per-entity time series, accumulate
-  ADI_KEY_STATS snapshots (APRA does not publish an entity-level back-series).
+  latest quarter, use ADI_KEY_STATS. APRA DOES publish an entity-level back
+  series — Table 4 of the ADI centralised publication XLSX, quarterly from
+  March 2013 for capital and risk-weighted assets and from March 2018 for
+  liquidity ratios (verified 2026-08-16: 53 quarters, 149 entities).
+  ADI_KEY_STATS just reads Table 1 (current quarter) today, so entity-level
+  history is not yet served here — but it must never be reconstructed by
+  accumulating snapshots.
   Source: APRA Quarterly ADI Performance Statistics, Tab 1a (financial
   performance, excludes 'other ADIs').
 period_coverage: September 2004 → latest quarter
@@ -77,6 +82,12 @@ columns:
     unit: AUD millions
     role: measure
     dtype: float
+# 0.8.28: the value column is AUD millions for every metric EXCEPT the entity
+# count, which is a plain number (the unit contract forbids mixing).
+unit_overrides:
+  metric:
+    number_of_entities: Number
+    "Number of entities": Number
 dimension_values:
   metric:
     # APRA's XLSX uses footnote markers (trailing 'a') on some metric names —

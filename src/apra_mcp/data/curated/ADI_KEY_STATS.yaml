@@ -7,14 +7,29 @@ description: |
   to "what's CBA's CET1 ratio?", "how big are the major banks?", or "which
   foreign bank has the highest capital base?".
 
-  This file is a SNAPSHOT — it ships the most recent reporting quarter (and
-  sometimes the previous one for cross-quarter movement). For long historical
-  series, accumulate snapshots over time. The published filename references the
-  full coverage period (March 2013 onward) but only the latest quarter is in
-  the file.
+  The source XLSX ships four data sheets. Tables 1-3 (regulatory capital,
+  risk-weighted assets, liquidity ratios) carry the CURRENT reporting quarter
+  only. Table 4, titled "Back series", carries the FULL history: verified
+  2026-08-16 as 5,295 rows, 53 quarters (March 2013 → March 2026), 149
+  entities, with every column from Tables 1-3 plus ABN. APRA's explanatory
+  notes inside the workbook state it directly: "This publication is currently
+  available in an Microsoft Excel version, containing a back series of data:
+  from 2013 for regulatory capital and risk-weighted assets statistics, and
+  from 2018 for liquidity ratios."
+
+  Every measure in THIS dataset (CET1 / Tier 1 / total capital base / total
+  RWA and the three capital ratios) is present in Table 4 from 2013-03-31 —
+  no gaps, no accumulation required. Liquidity ratios (LCR, NSFR, MLH) are
+  also in Table 4 from 2018-03-31 but are not currently exposed by any
+  curated dataset here.
+
+  This dataset is wired to `sheet: Table 1`, so it serves the current quarter
+  only. That is a CONFIGURATION choice, not a limit of the source. Do NOT
+  accumulate snapshots to build history — point `sheet` at Table 4 instead
+  (see also ADI_RISK_WEIGHTED_ASSETS, same file, same fix).
   Source: APRA Quarterly Authorised Deposit-taking Institution Statistics,
   "Authorised deposit-taking institution centralised publication" XLSX.
-period_coverage: latest quarter snapshot
+period_coverage: "current quarter only as configured (Table 1); APRA publishes March 2013 → current in Table 4 of the same file"
 update_frequency: quarterly
 source_url: https://www.apra.gov.au/quarterly-authorised-deposit-taking-institution-statistics
 download_url: https://www.apra.gov.au/sites/default/files/2026-03/Authorised%20deposit-taking%20institution%20centralised%20publication%20-%20March%202013%20to%20December%202025.xlsx

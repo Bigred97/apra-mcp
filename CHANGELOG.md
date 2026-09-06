@@ -1,5 +1,41 @@
 # Changelog
 
+## 0.8.28 (2026-09-05) — top_n ranks within the latest period; per-metric units; real serverInfo version; APRA back-series docs; dataset-keyed stale cache
+
+### Fixed
+
+- `top_n()` ranked every period together (`last_n=None`), so on a multi-period dataset
+  (MYSUPER_PRODUCTS: ~90 products x 11 years) "top 10" was one or two dominant products'
+  several years. It now ranks within the latest period (`last_n=1`); snapshot datasets
+  are unchanged.
+- `ADI_PERFORMANCE` stamped `unit="AUD millions"` on the `number_of_entities` metric (a
+  plain count). Curated YAML gains `unit_overrides` (dimension -> value -> unit), applied
+  in shaping; the entity count now carries `unit="Number"`. (ADI_PROPERTY_EXPOSURES'
+  ratio rows under the same column are a known remaining case, see the review notes.)
+- `FastMCP("apra-mcp")` was constructed without `version=`, so the MCP initialize
+  handshake advertised fastmcp's own library version in `serverInfo.version`
+  while every `DataResponse.server_version` carried the real package version.
+  Now `FastMCP("apra-mcp", version=__version__)`;
+  `test_mcp_server_version_matches_package_version` pins it.
+- Byte-cache stale fallback is keyed by dataset id as well as the resolved URL: a rotated quarterly download URL that 404s can still serve last quarter's payload (`client.fetch_resource(..., dataset_id=)` dual-writes `dataset:<ID>`; `_fetch_cached` / `get_stale` looks that key up after a URL miss).
+- `ADI_PROPERTY_EXPOSURES` was unreadable on the current Tab 1a layout: curated `header_row: 7` pointed at the first Office row, so `melt_transposed` found zero period columns and `latest`/`get_data` raised a missing-columns error. Period dates live on Excel row 4 (same convention as `ADI_PERFORMANCE`); `header_row` corrected to 4. Seed `download_url` refreshed to the March 2026 file (the Dec-2025 YAML URL 404s).
+- `ADI_PROPERTY_EXPOSURES` ratio rows (`Impaired assets to exposures`, `Specific provisions to *`, `Non-performing to total exposures`, …) and `Number of entitiesa` shared the AUD-millions value column and were stamped `unit="AUD millions"` (e.g. `0.001`). `unit_overrides` now map those exact Tab 1a labels to `Ratio` / `Number` (labels confirmed from the live March 2026 sheet on 2026-09-06).
+
+### Changed
+
+- `ADI_KEY_STATS`, `ADI_RISK_WEIGHTED_ASSETS`, `ADI_PERFORMANCE` and `SUPER_FUND_LEVEL`
+  descriptions: APRA DOES publish entity-level back series (Table 4 of the ADI
+  centralised publication, March 2013 onward, verified 2026-08-16 as 5,295 rows,
+  53 quarters, 149 entities; the fund-level "database version" ZIP, June 2021
+  onward). The old text called the files snapshots and told callers to accumulate
+  them. `period_coverage` now reads "current quarter only as configured" and names
+  where the history lives. Serving it (point `sheet` at Table 4; add a ZIP+CSV
+  fetch path) is a follow-up, not a source limitation.
+- CI lint: `[tool.ruff.lint] select` pinned to the classic default rule set. The `test.yml`
+  job runs `uvx "ruff>=0.5"` (newest ruff) and a 2026 ruff release widened the default
+  selection (BLE001, TRY004, S110, PYI, PERF, FURB, ...), which turned the lint job red on
+  an unchanged tree from 2026-08-16. No code changed; the gate is stable again.
+
 ## 0.8.27 (2026-08-15) — latest() multi-institution correctness + filters accepts JSON-string over MCP transport
 
 ### Changed
