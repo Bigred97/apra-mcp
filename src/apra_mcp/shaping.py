@@ -557,6 +557,43 @@ def _identity_dimension_key(cd: CuratedDataset) -> str | None:
     return None
 
 
+
+def _truncate_records(records: list[Observation], cap: int) -> list[Observation]:
+    """Truncate `records` to `cap` items, keeping the most RECENT data.
+
+    Mirrors `ato_mcp.shaping._truncate_records` / `abs_mcp.shaping.truncate_records`
+    (same defect class — see ../CLAUDE.md truncation-direction convention).
+    Called on records already sorted ASCENDING by period (oldest first) —
+    see the `records.sort(...)` call in `build_response` above where this
+    helper is invoked.
+
+    - Time-series records (non-empty `period`, e.g. ADI_PERFORMANCE industry
+      history): tail-slice (`[-cap:]`). A naive `records[:cap]` head-slice
+      after ascending sort keeps the OLDEST rows — which is exactly how
+      ausdata-api `/v1/series/{id}/latest` (limit=1) was returning
+      2004-09-01 for AU.BANK.*.LOANS while `/meta` correctly reported
+      observation_end=2026-03-31.
+    - Register/snapshot records (empty `period`): there is no chronological
+      "latest", so keep head-slicing (`[:cap]`) — source / entity-major order
+      is what matters for latest() multi-institution truncation.
+    - Mixed lists: periodic rows are tail-sliced first so the newest periods
+      are never dropped, then any leftover budget is filled from the front of
+      the period-less segment.
+    """
+    periodic = [r for r in records if r.period is not None]
+    registerish = [r for r in records if r.period is None]
+
+    if not periodic:
+        return registerish[:cap]
+    if not registerish:
+        return periodic[-cap:]
+
+    kept_periodic = periodic[-cap:]
+    remaining = cap - len(kept_periodic)
+    kept_register = registerish[:remaining] if remaining > 0 else []
+    return kept_periodic + kept_register
+
+
 def build_response(
     *,
     cd: CuratedDataset,
@@ -635,7 +672,7 @@ def build_response(
             # surviving record here shares the same latest period(s), records
             # are built measure-major (all of measure A's entities, then all
             # of measure B's, ...). That is fine on its own — but a later
-            # `limit` head-slice would then return N rows of a single measure
+            # `limit` truncation would then return N rows of a single measure
             # across many entities, not N complete entities. The entity-major
             # sort in the ASCENDING-by-period step below (keyed on
             # `_identity_dimension_key`) is what turns this into
@@ -664,11 +701,12 @@ def build_response(
     # Secondary key: entity, then measure. Within a tied period (the common
     # case for latest()/last_n, where every survivor shares the same latest
     # period) this makes the row order entity-major instead of measure-major,
-    # so a downstream `limit` head-slice returns complete entities (all of
-    # institution A's measures, then all of institution B's, ...) rather than
-    # N rows of a single measure spread across many entities. When the
-    # dataset has no identifiable entity dimension (`_identity_dimension_key`
-    # returns None), this degrades to a plain (period, measure) sort.
+    # so a downstream `limit` truncation (tail for periodic / head for
+    # period-less) returns complete entities (all of institution A's
+    # measures, then all of institution B's, ...) rather than N rows of a
+    # single measure spread across many entities. When the dataset has no
+    # identifiable entity dimension (`_identity_dimension_key` returns None),
+    # this degrades to a plain (period, measure) sort.
     entity_key = _identity_dimension_key(cd)
 
     def _record_sort_key(r: Observation) -> tuple[bool, str, str, str]:
@@ -691,14 +729,20 @@ def build_response(
             period_start = period_start or periods[0]
             period_end = period_end or periods[-1]
 
-    # Apply caller-supplied `limit` (e.g. latest() uses limit=50 to
-    # keep wide-layout responses under the agent context window).
-    # truncated_at preserves the original count so callers can detect
-    # truncation. Same pattern as ato 0.8.14 / asic.
+    # Apply caller-supplied `limit` (e.g. gateway /series/{id}/latest uses
+    # limit=1; latest() uses limit=50 to keep wide-layout responses under
+    # the agent context window). truncated_at preserves the original count
+    # so callers can detect truncation.
+    #
+    # Portfolio rule (same defect class as ato/abs): after ASCENDING sort,
+    # truncation must keep the LATEST periods for time-series data
+    # (`[-limit:]`), not the oldest (`[:limit]`). Head-slicing here is what
+    # made AU.BANK.*.LOANS /latest publish 2004-09-01 while /meta end was
+    # 2026-03-31. Period-less register rows still head-slice (see helper).
     truncated_at: int | None = None
     if limit is not None and limit > 0 and len(records) > limit:
         truncated_at = len(records)
-        records = records[:limit]
+        records = _truncate_records(records, limit)
 
     if fmt == "csv":
         out_records: list[Observation] | list[dict[str, Any]] = []

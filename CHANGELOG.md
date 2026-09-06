@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.8.29 (2026-09-06) — limit keeps newest after ascending sort
+
+### Fixed
+
+- **`limit` after ASCENDING sort kept the OLDEST rows** — `build_response` sorted
+  records oldest→newest (portfolio convention: `records[-1]` is latest) then
+  head-sliced with `records[:limit]`. ausdata-api `/v1/series/{id}/latest` fetches
+  `_get_data_impl(..., limit=1)` for the three ADI_PERFORMANCE-backed bank series
+  (`AU.BANK.TOTAL.LOANS`, `AU.BANK.HOUSING.LOANS`, `AU.BANK.INTEREST.INCOME`) and
+  published `2004-09-01` while `/meta` correctly reported `observation_end=2026-03-31`
+  (full history + MCP `latest()` via `last_n=1` were already correct). Truncation now
+  uses `_truncate_records` (same defect class as ato/abs): tail-slice for periodic
+  rows, head-slice for period-less register rows. `tests/test_limit_keeps_newest.py`
+  pins `limit=1` period == full `period.end` for all three metrics.
+
 ## 0.8.28 (2026-09-05) — top_n ranks within the latest period; per-metric units; real serverInfo version; APRA back-series docs; dataset-keyed stale cache
 
 ### Fixed
